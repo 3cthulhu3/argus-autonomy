@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "argus-autonomy"
+version = "1.0.0"
+description = "Active wildfire-front estimation for a single UAV: satellite prior + thermal sensing, Bayesian occupancy filter, information-rate planning, geofence/RTB safety monitor (simulation)."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [{ name = "d3st" }]
+keywords = ["wildfire", "UAV", "active perception", "Bayesian filtering", "informative path planning"]
+dependencies = ["numpy>=1.24", "scipy>=1.10"]
+
+[project.urls]
+Repository = "https://github.com/3cthulhu3/argus-autonomy"
+Report = "https://github.com/3cthulhu3/argus-autonomy/blob/main/docs/report/report.pdf"
+
+[project.optional-dependencies]
+viz = ["matplotlib>=3.7", "imageio>=2.30"]
+dev = ["pytest>=7", "matplotlib>=3.7", "imageio>=2.30"]
+
+[project.scripts]
+argus-demo = "argus_autonomy.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

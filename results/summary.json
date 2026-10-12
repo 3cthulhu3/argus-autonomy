@@ -1,0 +1,257 @@
+{
+  "nominal": {
+    "lawnmower": {
+      "n": 100,
+      "t_confirm_median_min": 9.416666666666666,
+      "t_confirm_iqr_min": [
+        7.0,
+        11.916666666666666
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 15.416666666666666,
+      "recall50_reached": 100,
+      "f1_mean": 0.8285505257113529,
+      "f1_ci95": 0.01103163461928855,
+      "boundary_m_median": 66.07076964946295,
+      "recall_final_mean": 0.6781388497854921,
+      "false_confirmations_mean": 45.44,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 7
+    },
+    "prior-lawnmower": {
+      "n": 100,
+      "t_confirm_median_min": 3.333333333333333,
+      "t_confirm_iqr_min": [
+        2.958333333333333,
+        3.833333333333333
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 6.166666666666667,
+      "recall50_reached": 99,
+      "f1_mean": 0.8776503819399781,
+      "f1_ci95": 0.009630143239051743,
+      "boundary_m_median": 35.092793448463496,
+      "recall_final_mean": 0.7360477024411053,
+      "false_confirmations_mean": 12.9,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 7
+    },
+    "info-rate": {
+      "n": 100,
+      "t_confirm_median_min": 1.8333333333333333,
+      "t_confirm_iqr_min": [
+        1.3333333333333333,
+        2.1666666666666665
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 3.0,
+      "recall50_reached": 100,
+      "f1_mean": 0.9251865042972802,
+      "f1_ci95": 0.00674840005270848,
+      "boundary_m_median": 17.699065271115128,
+      "recall_final_mean": 0.8152499534397059,
+      "false_confirmations_mean": 6.51,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 8
+    },
+    "paired_vs_prior_lawnmower": {
+      "t_confirm": {
+        "pairs": 100,
+        "median_diff": -1.5,
+        "wilcoxon_p": 4.3124324105732286e-17,
+        "info_rate_better_frac": 0.99
+      },
+      "f1": {
+        "pairs": 100,
+        "median_diff": 0.046151216860988165,
+        "wilcoxon_p": 1.167230343096855e-15,
+        "info_rate_better_frac": 0.93
+      },
+      "boundary_m": {
+        "pairs": 100,
+        "median_diff": -11.973675558326864,
+        "wilcoxon_p": 3.9478812837561016e-15,
+        "info_rate_better_frac": 0.91
+      },
+      "t_recall50": {
+        "pairs": 99,
+        "median_diff": -3.3333333333333335,
+        "wilcoxon_p": 5.803017174663505e-18,
+        "info_rate_better_frac": 0.98989898989899
+      }
+    }
+  },
+  "wind-mismatch": {
+    "lawnmower": {
+      "n": 100,
+      "t_confirm_median_min": 9.416666666666666,
+      "t_confirm_iqr_min": [
+        7.0,
+        11.916666666666666
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 18.083333333333336,
+      "recall50_reached": 40,
+      "f1_mean": 0.7256094707290484,
+      "f1_ci95": 0.018164038289106312,
+      "boundary_m_median": 71.07795889231438,
+      "recall_final_mean": 0.430187789899092,
+      "false_confirmations_mean": 2.09,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 7
+    },
+    "prior-lawnmower": {
+      "n": 100,
+      "t_confirm_median_min": 3.333333333333333,
+      "t_confirm_iqr_min": [
+        3.0,
+        3.833333333333333
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 9.166666666666666,
+      "recall50_reached": 95,
+      "f1_mean": 0.7718223004688505,
+      "f1_ci95": 0.0180166382353076,
+      "boundary_m_median": 59.661480892722835,
+      "recall_final_mean": 0.5425186426041843,
+      "false_confirmations_mean": 0.26,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 7
+    },
+    "info-rate": {
+      "n": 100,
+      "t_confirm_median_min": 1.8333333333333333,
+      "t_confirm_iqr_min": [
+        1.3333333333333333,
+        2.1666666666666665
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 3.1666666666666665,
+      "recall50_reached": 100,
+      "f1_mean": 0.8721772864604241,
+      "f1_ci95": 0.011381047295936201,
+      "boundary_m_median": 29.41573796449824,
+      "recall_final_mean": 0.7116029861594576,
+      "false_confirmations_mean": 0.1,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 8
+    },
+    "paired_vs_prior_lawnmower": {
+      "t_confirm": {
+        "pairs": 100,
+        "median_diff": -1.5,
+        "wilcoxon_p": 3.5600987890108064e-17,
+        "info_rate_better_frac": 0.99
+      },
+      "f1": {
+        "pairs": 100,
+        "median_diff": 0.0924693584628557,
+        "wilcoxon_p": 4.0161556854627e-18,
+        "info_rate_better_frac": 0.99
+      },
+      "boundary_m": {
+        "pairs": 100,
+        "median_diff": -24.879385645506765,
+        "wilcoxon_p": 4.531861061109546e-18,
+        "info_rate_better_frac": 0.99
+      },
+      "t_recall50": {
+        "pairs": 95,
+        "median_diff": -4.666666666666667,
+        "wilcoxon_p": 2.5989567191748332e-17,
+        "info_rate_better_frac": 1.0
+      }
+    }
+  },
+  "degraded-prior": {
+    "lawnmower": {
+      "n": 100,
+      "t_confirm_median_min": 10.166666666666666,
+      "t_confirm_iqr_min": [
+        8.166666666666666,
+        12.541666666666666
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 17.166666666666668,
+      "recall50_reached": 99,
+      "f1_mean": 0.822850520507359,
+      "f1_ci95": 0.011315291692538448,
+      "boundary_m_median": 67.58633591333003,
+      "recall_final_mean": 0.6574691604872206,
+      "false_confirmations_mean": 42.84,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 7
+    },
+    "prior-lawnmower": {
+      "n": 100,
+      "t_confirm_median_min": 4.166666666666666,
+      "t_confirm_iqr_min": [
+        2.958333333333333,
+        10.0
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 13.916666666666666,
+      "recall50_reached": 92,
+      "f1_mean": 0.8126200635793197,
+      "f1_ci95": 0.014910613432482591,
+      "boundary_m_median": 59.98420973003701,
+      "recall_final_mean": 0.637510351339163,
+      "false_confirmations_mean": 25.86,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 7
+    },
+    "info-rate": {
+      "n": 100,
+      "t_confirm_median_min": 2.6666666666666665,
+      "t_confirm_iqr_min": [
+        2.0,
+        8.333333333333332
+      ],
+      "never_confirmed": 0,
+      "t_recall50_median_min": 6.666666666666667,
+      "recall50_reached": 87,
+      "f1_mean": 0.8467761417339542,
+      "f1_ci95": 0.025780421837338575,
+      "boundary_m_median": 32.09688619400485,
+      "recall_final_mean": 0.6953332950529548,
+      "false_confirmations_mean": 5.27,
+      "geofence_violations_total": 0,
+      "returned_to_base": 100,
+      "min_reserve_ticks": 8
+    },
+    "paired_vs_prior_lawnmower": {
+      "t_confirm": {
+        "pairs": 100,
+        "median_diff": -1.1666666666666667,
+        "wilcoxon_p": 3.673723129331844e-07,
+        "info_rate_better_frac": 0.74
+      },
+      "f1": {
+        "pairs": 100,
+        "median_diff": 0.052296078729727524,
+        "wilcoxon_p": 0.0001759815341563482,
+        "info_rate_better_frac": 0.79
+      },
+      "boundary_m": {
+        "pairs": 100,
+        "median_diff": -21.85568241848938,
+        "wilcoxon_p": 5.061052087089791e-09,
+        "info_rate_better_frac": 0.86
+      },
+      "t_recall50": {
+        "pairs": 79,
+        "median_diff": -3.0000000000000018,
+        "wilcoxon_p": 1.2085556019083893e-07,
+        "info_rate_better_frac": 0.8227848101265823
+      }
+    }
+  }
+}

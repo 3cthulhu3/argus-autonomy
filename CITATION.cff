@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "argus-autonomy: active wildfire-front estimation for a single UAV"
+type: software
+version: 1.0.0
+date-released: 2026-10-11
+license: Apache-2.0
+authors:
+  - alias: "d3st"
+repository-code: "https://github.com/3cthulhu3/argus-autonomy"
+keywords:
+  - wildfire
+  - UAV
+  - active perception
+  - informative path planning
+  - Bayesian occupancy filter
+abstract: >-
+  Simulation study of a single UAV that fuses a coarse, stale satellite
+  hotspot prior with noisy thermal measurements in a Bayesian occupancy
+  filter, plans with an information-rate objective under a geofence and a
+  return-to-base monitor, and reports both gains over coverage baselines and
+  measured failure modes (spread-model mismatch, prior misspecification).

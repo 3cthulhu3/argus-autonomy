@@ -1,0 +1,12 @@
+| condition | background prior | F1 mean | runs with F1 < 0.7 | first confirmation, median (min) | false confirmations, mean |
+|---|---|---|---|---|---|
+| nominal | 0.002 | 0.925 | 0 | 1.8 | 6.5 |
+| nominal | 0.005 | 0.924 | 0 | 1.8 | 7.8 |
+| nominal | 0.01 | 0.929 | 0 | 1.8 | 6.5 |
+| nominal | 0.02 | 0.931 | 0 | 2.0 | 6.6 |
+| nominal | 0.05 | 0.848 | 1 | 2.3 | 47.9 |
+| degraded-prior | 0.002 | 0.847 | 13 | 2.7 | 5.3 |
+| degraded-prior | 0.005 | 0.870 | 7 | 2.7 | 5.3 |
+| degraded-prior | 0.01 | 0.898 | 3 | 2.7 | 6.8 |
+| degraded-prior | 0.02 | 0.901 | 3 | 2.7 | 11.2 |
+| degraded-prior | 0.05 | 0.829 | 10 | 4.2 | 64.8 |

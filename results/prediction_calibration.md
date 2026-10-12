@@ -1,0 +1,6 @@
+| variant | 10 min: area ratio / IoU | 20 min: area ratio / IoU | 30 min: area ratio / IoU |
+|---|---|---|---|
+| gated, wind known | 0.80 / 0.74 | 0.69 / 0.67 | 0.66 / 0.64 |
+| gated, calm-air model | 0.60 / 0.51 | 0.43 / 0.36 | 0.35 / 0.28 |
+| ungated, wind known | 1.14 / 0.79 | 1.51 / 0.66 | 4.70 / 0.21 |
+| ungated, calm-air model | 0.80 / 0.58 | 0.89 / 0.49 | 1.15 / 0.48 |

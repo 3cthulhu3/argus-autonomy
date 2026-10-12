@@ -1,0 +1,10 @@
+{
+  "title": "argus-autonomy: active wildfire-front estimation for a single UAV",
+  "upload_type": "software",
+  "license": "Apache-2.0",
+  "creators": [
+    {"name": "d3st"}
+  ],
+  "keywords": ["wildfire", "UAV", "active perception", "informative path planning", "Bayesian filtering"],
+  "description": "Simulation study: satellite hotspot prior + onboard thermal sensing fused in a Bayesian occupancy filter, information-rate planning under geofence and return-to-base constraints, with benchmark against coverage baselines and measured failure modes. Technical report included in docs/report/."
+}

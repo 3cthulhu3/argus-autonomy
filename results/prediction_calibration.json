@@ -1,0 +1,58 @@
+{
+  "gated, wind known": {
+    "10 min": {
+      "area_ratio_median": 0.7962391938769892,
+      "iou_median": 0.7380313381045326
+    },
+    "20 min": {
+      "area_ratio_median": 0.6854832654119992,
+      "iou_median": 0.6663230240549828
+    },
+    "30 min": {
+      "area_ratio_median": 0.6600177551843619,
+      "iou_median": 0.6399794685858442
+    }
+  },
+  "gated, calm-air model": {
+    "10 min": {
+      "area_ratio_median": 0.5996687295988025,
+      "iou_median": 0.5100109051254089
+    },
+    "20 min": {
+      "area_ratio_median": 0.4348979272759761,
+      "iou_median": 0.3569422150882825
+    },
+    "30 min": {
+      "area_ratio_median": 0.34535641287685237,
+      "iou_median": 0.27678133713270214
+    }
+  },
+  "ungated, wind known": {
+    "10 min": {
+      "area_ratio_median": 1.1386053500839335,
+      "iou_median": 0.7862057552954292
+    },
+    "20 min": {
+      "area_ratio_median": 1.5100023184181763,
+      "iou_median": 0.655675671078148
+    },
+    "30 min": {
+      "area_ratio_median": 4.703935912604397,
+      "iou_median": 0.21261081710836277
+    }
+  },
+  "ungated, calm-air model": {
+    "10 min": {
+      "area_ratio_median": 0.7991755106698619,
+      "iou_median": 0.5821995672741942
+    },
+    "20 min": {
+      "area_ratio_median": 0.8932744371615845,
+      "iou_median": 0.4910295612989122
+    },
+    "30 min": {
+      "area_ratio_median": 1.1510014713874785,
+      "iou_median": 0.4769744528958837
+    }
+  }
+}
