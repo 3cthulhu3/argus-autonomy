@@ -22,3 +22,5 @@ jobs:
         run: argus-demo --planner info-rate --seed 0
       - name: quick benchmark (10 seeds) to catch regressions in the pipeline
         run: python experiments/run_benchmark.py --seeds 10 --workers 2
+      - name: quick decoy benchmark (v1.1) to catch regressions in the decision pipeline
+        run: python experiments/run_decoy_benchmark.py --quick --workers 2

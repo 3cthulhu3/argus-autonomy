@@ -8,3 +8,4 @@ docs/report/*.log
 docs/report/*.out
 docs/report/*.toc
 *.gif.tmp
+results/*_quick*

@@ -5,10 +5,21 @@ from __future__ import annotations
 import numpy as np
 from scipy.ndimage import binary_dilation
 
-from .config import ModelConfig, PriorConfig, SensorConfig
+from .config import (
+    EMPTY,
+    FIRE,
+    HOT,
+    K_CLASSES,
+    WARM,
+    DecoyConfig,
+    ModelConfig,
+    PriorConfig,
+    SensorConfig,
+)
 from .world import NEIGHBOURS, shift, spread_factors
 
 EPS = 1e-6
+LOG_FLOOR = -15.0 - float(np.log1p(np.exp(-15.0)))  # log sigma(-15)
 
 
 # --------------------------------------------------------------------------- prior
@@ -69,6 +80,23 @@ def mutual_information(p: np.ndarray, cfg: SensorConfig) -> np.ndarray:
 
 
 # --------------------------------------------------------------------------- filter
+def spread_kernel(model: ModelConfig, wind_dir: float, true_wind_gain: float) -> dict:
+    """Per-direction ignition probability the *estimator* assumes."""
+    gain = 0.0
+    if model.wind_known:
+        gain = true_wind_gain if model.wind_gain is None else model.wind_gain
+    return {d: min(model.p_spread * f * model.fuel, 0.999)
+            for d, f in spread_factors(wind_dir, gain).items()}
+
+
+def mean_field_ignition(src: np.ndarray, q: dict) -> np.ndarray:
+    """P(cell ignites this fire step) = 1 - prod_j (1 - q_j s_j), neighbours independent."""
+    log_not = np.zeros_like(src)
+    for (dr, dc), qd in q.items():
+        log_not += np.log1p(-qd * shift(src, dr, dc))
+    return 1.0 - np.exp(log_not)
+
+
 class OccupancyFilter:
     """Per-cell Bayes filter over 'affected by fire', in log-odds.
 
@@ -100,11 +128,7 @@ class OccupancyFilter:
         self.sensor = sensor
         self.l_hit = np.log(sensor.p_detect / sensor.p_false_alarm)
         self.l_miss = np.log((1 - sensor.p_detect) / (1 - sensor.p_false_alarm))
-        gain = 0.0
-        if model.wind_known:
-            gain = true_wind_gain if model.wind_gain is None else model.wind_gain
-        self.q = {d: min(model.p_spread * f * model.fuel, 0.999)
-                  for d, f in spread_factors(wind_dir, gain).items()}
+        self.q = spread_kernel(model, wind_dir, true_wind_gain)
 
     @property
     def prob(self) -> np.ndarray:
@@ -120,13 +144,132 @@ class OccupancyFilter:
         if self.gate is not None:
             src = src * (b >= self.gate)
         self.history = self.history[1:] + [b]
-        log_not = np.zeros_like(b)
-        for (dr, dc), q in self.q.items():
-            log_not += np.log1p(-q * shift(src, dr, dc))
-        b_new = b + (1 - b) * (1 - np.exp(log_not))
+        b_new = b + (1 - b) * mean_field_ignition(src, self.q)
         b_new = np.clip(b_new, EPS, 1 - EPS)
         self.L = np.log(b_new / (1 - b_new))
 
 
-__all__ = ["satellite_prior", "observe", "footprint", "binary_entropy",
-           "mutual_information", "OccupancyFilter", "NEIGHBOURS"]
+
+
+
+# --------------------------------------------------------------------------- v1.1
+def class_theta(sensor: SensorConfig, decoys: DecoyConfig) -> np.ndarray:
+    """P(z=1 | class) for the wide thermal look, indexed by class."""
+    th = np.empty(K_CLASSES)
+    th[EMPTY], th[FIRE] = sensor.p_false_alarm, sensor.p_detect
+    th[WARM], th[HOT] = decoys.theta_warm, decoys.theta_hot
+    return th
+
+
+def observe_wide(classes: np.ndarray, pos: tuple[int, int], theta: np.ndarray, radius: int,
+                 rng: np.random.Generator) -> tuple[tuple[slice, slice], np.ndarray]:
+    """Class-conditional binary detections over the square footprint.
+
+    Consumes the RNG exactly like v1.0 ``observe`` does, so with no decoys
+    the measurement stream is bit-identical to v1.0.
+    """
+    fp = footprint(pos, radius, classes.shape[0])
+    p = theta[classes[fp]]
+    z = rng.random(p.shape) < p
+    return fp, z
+
+
+class CategoricalFilter:
+    """Per-cell categorical Bayes filter over {empty, fire, warm, hot}.
+
+    Classes with zero prior mass everywhere are *inactive* and stay at exactly
+    zero (the H0 model has no fire class).  The state is the log-odds of each
+    active class against `empty`, clipped like v1.0, so that restricted to
+    {empty, fire} with no decoys it reproduces ``OccupancyFilter``.
+
+    ``predict`` moves mass empty -> fire through the same gated mean-field
+    spread model as v1.0 (when ``q`` is given); decoy mass never moves.
+    """
+
+    def __init__(self, prior: np.ndarray, theta: np.ndarray, q: dict | None = None,
+                 burn_steps: int = 8, gate: float | None = 0.5):
+        assert prior.shape[0] == K_CLASSES
+        mass = prior.reshape(K_CLASSES, -1).max(axis=1)
+        self.cls = [k for k in range(1, K_CLASSES) if mass[k] > 0]
+        if q is not None and FIRE not in self.cls:
+            raise ValueError("a spreading filter needs an active fire class")
+        self.theta = np.asarray(theta, float)
+        self.q, self.gate = q, gate
+        p0 = np.maximum(prior[EMPTY], EPS)
+        self.L = np.stack([np.log(np.maximum(prior[k], EPS)) - np.log(p0) for k in self.cls])
+        self.history = [np.zeros(prior.shape[1:])] * burn_steps
+        th0 = self.theta[EMPTY]
+        self.l_hit = np.array([np.log(self.theta[k] / th0) for k in self.cls])
+        self.l_miss = np.array([np.log((1 - self.theta[k]) / (1 - th0)) for k in self.cls])
+
+    # ------------------------------------------------------------------ state
+    @property
+    def probs(self) -> np.ndarray:
+        e = np.exp(self.L)
+        denom = 1.0 + e.sum(axis=0)
+        out = np.zeros((K_CLASSES,) + self.L.shape[1:])
+        out[EMPTY] = 1.0 / denom
+        for i, k in enumerate(self.cls):
+            out[k] = e[i] / denom
+        return out
+
+    def prob(self, k: int) -> np.ndarray:
+        return self.probs[k]
+
+    def p_hit(self, fp: tuple[slice, slice] | None = None) -> np.ndarray:
+        """Predictive P(z=1) per cell (optionally only over a footprint)."""
+        b = self.probs if fp is None else self.probs[(slice(None),) + fp]
+        return np.tensordot(self.theta, b, axes=1)
+
+    # ------------------------------------------------------------------ Bayes
+    def predictive_loglik(self, fp: tuple[slice, slice], z: np.ndarray) -> float:
+        """log p(z_fp | model, past), cells independent within the model."""
+        ph = np.clip(self.p_hit(fp), EPS, 1 - EPS)
+        return float(np.sum(np.where(z, np.log(ph), np.log1p(-ph))))
+
+    def update(self, fp: tuple[slice, slice], z: np.ndarray) -> None:
+        """Exact Bayes, then floor every class probability at sigma(-15).
+
+        For two classes this is v1.0's log-odds clip at +-15.  Clipping each
+        class's log-odds against `empty` separately would be wrong here: fire,
+        warm and hot all climb together on a hit, saturate at the same cap
+        and lose the ratio between them.
+        """
+        idx = (slice(None),) + fp
+        lg = self.L[idx] + np.where(z, self.l_hit[:, None, None], self.l_miss[:, None, None])
+        full = np.concatenate([np.zeros((1,) + lg.shape[1:]), lg])
+        logp = np.maximum(full - np.logaddexp.reduce(full, axis=0), LOG_FLOOR)
+        logp -= np.logaddexp.reduce(logp, axis=0)
+        self.L[idx] = logp[1:] - logp[0]
+
+    def predict(self) -> None:
+        if self.q is None:
+            return
+        b = self.probs
+        bf = b[FIRE].copy()     # pre-predict belief; history must not alias b
+        src = np.clip(bf - self.history[0], 0.0, 1.0)
+        if self.gate is not None:
+            src = src * (bf >= self.gate)
+        self.history = self.history[1:] + [bf]
+        moved = b[EMPTY] * mean_field_ignition(src, self.q)
+        b[FIRE] = bf + moved
+        b[EMPTY] = b[EMPTY] - moved
+        p0 = np.log(np.maximum(b[EMPTY], EPS))
+        for i, k in enumerate(self.cls):
+            self.L[i] = np.log(np.maximum(b[k], EPS)) - p0
+
+
+__all__ = [
+    "NEIGHBOURS",
+    "CategoricalFilter",
+    "OccupancyFilter",
+    "binary_entropy",
+    "class_theta",
+    "footprint",
+    "mean_field_ignition",
+    "mutual_information",
+    "observe",
+    "observe_wide",
+    "satellite_prior",
+    "spread_kernel",
+]

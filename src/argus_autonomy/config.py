@@ -70,5 +70,59 @@ class MissionConfig:
 
 NOMINAL = MissionConfig()
 
+
+# ----------------------------------------------------------------- v1.1: decoys
+# Latent cell classes. Index order is used everywhere (arrays of shape (K, n, n)).
+EMPTY, FIRE, WARM, HOT = 0, 1, 2, 3
+CLASS_NAMES = ("empty", "fire", "warm-decoy", "hot-decoy")
+K_CLASSES = 4
+
+
+@dataclass(frozen=True)
+class DecoyConfig:
+    """Persistent, non-spreading heat sources and how the scenario places them.
+
+    `warm` = sunlit rock, vehicle, roof; `hot` = contained burn, campfire.
+    The wide thermal camera's hit rate for empty and fire cells is taken from
+    SensorConfig, so a scenario without decoys is exactly the v1.0 scenario.
+    """
+    theta_warm: float = 0.70       # P(z=1 | warm decoy), wide thermal look
+    theta_hot: float = 0.85        # P(z=1 | hot decoy) -- identical to fire by design
+    mean_warm: float = 1.5         # Poisson mean number of warm decoys per scenario
+    mean_hot: float = 1.0          # Poisson mean number of hot decoys per scenario
+    max_side: int = 2              # decoys are 1..max_side x 1..max_side cells
+    min_sep_fire: int = 6          # cells from the fire at launch (family A)
+    p_sat_warm: float = 0.5        # probability a warm decoy shows in the satellite overpass
+    max_tries: int = 1000          # rejection sampling budget for family B (needs a cue)
+
+
+@dataclass(frozen=True)
+class SPRTConfig:
+    """Two-model sequential test: H1 = a spreading fire exists, H0 = nothing spreads.
+
+    rho_* are the estimator's background densities of each decoy class per
+    cell; the defaults match the scenario generator's expected decoy area
+    (mean count x mean size 2.25 cells / 4096 cells).
+    """
+    prior_h1: float = 0.5           # P(H1) at dispatch
+    alert: float = 4.595            # ALERT when log-odds >= alert   (log 99)
+    clear: float = -4.595           # CLEAR when log-odds <= clear   (-log 99)
+    rho_warm: float = 8.2e-4
+    rho_hot: float = 5.5e-4
+    # Share of the satellite cue H0 attributes to *warm* decoys. None (default) ->
+    # matched to the scenario generator (~0.43). 0 puts the whole cue on hot decoys
+    # (sensor response equal to fire's); a 60-seed smoke test favoured it, the full
+    # benchmark did not: more false alerts, no fewer missed fires (results/decoys_m1.md).
+    omega: float | None = None
+
+    def omega_for(self, decoys: DecoyConfig) -> float:
+        if self.omega is not None:
+            return self.omega
+        w = decoys.p_sat_warm * self.rho_warm
+        return w / (w + self.rho_hot)
+
+
+FAMILIES = ("A", "B", "C")  # A: fire + decoys, B: decoys only (cue present), C: fire only
+
 # Truth has wind, estimator assumes calm air: the idealised-model failure case.
 WIND_MISMATCH = MissionConfig(model=ModelConfig(wind_known=False))
