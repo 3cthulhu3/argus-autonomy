@@ -141,15 +141,25 @@ class DecisionResult:
     n_close_looks: int = 0
     cue_seen_at_decision: float = float("nan")
     llr: list[float] = field(repr=False, default_factory=list)
+    # sweep mode only: (tick, log-odds, gate open) after every observation, and for
+    # each alert level the first tick the log-odds reached it with where the alert lands
+    trace: list = field(repr=False, default_factory=list)
+    crossings: dict = field(repr=False, default_factory=dict)
 
     def summary(self) -> dict:
-        return {k: v for k, v in self.__dict__.items() if k != "llr"}
+        return {k: v for k, v in self.__dict__.items() if k not in ("llr", "trace", "crossings")}
 
 
 def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int,
                          dcfg: DecoyConfig | None = None, sprt: SPRTConfig | None = None,
                          stop_on_clear: bool = True, plan_on: str = "heat",
-                         min_drift: float | None = None) -> DecisionResult:
+                         min_drift: float | None = None, sweep: bool = False,
+                         alert_levels: tuple[float, ...] = ()) -> DecisionResult:
+    """``sweep=True`` never decides: the mission flies to endurance with the
+    pre-decision policy and logs the log-odds trajectory, so the decision of any
+    threshold pair is recovered afterwards as a first-passage time
+    (``first_passage``). Needs ``sprt.steer_clear`` set, or the policy would depend
+    on ``sprt.clear``."""
     dcfg = dcfg or DecoyConfig()
     sprt = sprt or SPRTConfig()
     if method not in METHODS:
@@ -206,9 +216,29 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
     close_target, hover = None, 0
     t = 0
 
+    steer = sprt.clear if sprt.steer_clear is None else sprt.steer_clear
+    if sweep and (test is None or sprt.steer_clear is None):
+        raise ValueError("sweep mode needs a two-model method and sprt.steer_clear")
+    trace: list = []
+    crossings: dict = {}
+    pending = sorted(alert_levels)
+
+    def log(now: int) -> None:
+        llr_log.append(test.llr)
+        if not sweep:
+            return
+        trace.append((now, test.llr, gate_open()))
+        while pending and test.llr >= pending[0]:
+            lvl = pending.pop(0)
+            r_, c_ = (round(x) for x in alert_location(test.h1.prob(FIRE)))
+            ok = None
+            if sc.has_fire:
+                ok = bool(distance_transform_edt(~fire.affected)[r_, c_] <= CORRECT_RADIUS_CELLS)
+            crossings[lvl] = (now, ok, int(sc.decoys[r_, c_]))
+
     def decide(now: int) -> None:
         nonlocal decision, t_dec, where
-        if decision != UNDECIDED or test is None:
+        if decision != UNDECIDED or test is None or sweep:
             return
         d = test.decision()
         if d == CLEAR and not gate_open():
@@ -237,19 +267,20 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
                 fp, y = observe_close(class_map(fire.affected, sc.decoys), pos, close_lik,
                                       dcfg.close_radius, rng)
                 seen[fp] = True
-                llr_log.append(test.update_close(fp, y, close_lik))
+                test.update_close(fp, y, close_lik)
+                log(t)
                 n_close += 1
                 close_target = None
                 decide(t)
             else:
-                llr_log.append(test.llr)
+                log(t)
             continue
 
         if not rtb and close_target is None and (t % cfg.replan_ticks == 0 or not path):
             dist, pred = fence.distances_from(pos)
             feas = monitor.feasible_mask(dist, remaining)
             pb = plan_belief()
-            if test is not None and decision == UNDECIDED and test.decision() == CLEAR and not gate_open():
+            if test is not None and decision == UNDECIDED and test.llr <= steer and not gate_open():
                 # the test would clear, but part of the cue is unseen: go and look there
                 k = cfg.sensor.radius
                 near = binary_dilation(gate & ~seen, iterations=k)
@@ -270,7 +301,7 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
 
         if close_target is not None and pos == close_target:
             hover = dcfg.t_close          # descend: the wide camera is off while hovering
-            llr_log.append(test.llr)
+            log(t)
             continue
 
         fp, z = observe_wide(class_map(fire.affected, sc.decoys), pos, theta, cfg.sensor.radius, rng)
@@ -280,7 +311,8 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
             if decision == UNDECIDED and (filt.prob >= cfg.confirm_threshold).any():
                 decision, t_dec, where = ALERT, (t + 1) * min_per_tick, alert_location(filt.prob)
         else:
-            llr_log.append(test.update(fp, z))
+            test.update(fp, z)
+            log(t)
             decide(t)
         if rtb and pos == cfg.base:
             break
@@ -307,5 +339,17 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
         f1=f1, boundary_m=boundary_error(b, truth, cfg.cell_m) if sc.has_fire else float("nan"),
         geofence_violations=violations, returned_to_base=(pos == cfg.base),
         ticks_flown=t + 1, reserve_left=remaining, n_close_looks=n_close,
-        cue_seen_at_decision=cue_seen[0], llr=llr_log,
+        cue_seen_at_decision=cue_seen[0], llr=llr_log, trace=trace, crossings=crossings,
     )
+
+
+def first_passage(trace: list, a: float, b: float, min_per_tick: float) -> tuple[str, float, int | None]:
+    """Decision of threshold pair (a, b) from a sweep-mode trace: ALERT at the first
+    tick with log-odds >= a; CLEAR at the first tick with log-odds <= b and the cue
+    gate open; else UNDECIDED. Returns (decision, minutes, tick)."""
+    for now, llr, gate_ok in trace:
+        if llr >= a:
+            return ALERT, (now + 1) * min_per_tick, now
+        if llr <= b and gate_ok:
+            return CLEAR, (now + 1) * min_per_tick, now
+    return UNDECIDED, float("nan"), None

@@ -248,3 +248,46 @@ def test_new_methods_respect_geofence_and_return_with_close_looks(method):
         r = run_decision_mission(CFG, method, fam, seed)
         assert r.geofence_violations == 0 and r.returned_to_base
         assert r.reserve_left >= 0
+
+
+# ---------------------------------------------------------------- milestone (iii)
+
+@pytest.mark.parametrize("method", ["M1", "M3"])
+@pytest.mark.parametrize("family", ["A", "B", "C"])
+def test_first_passage_from_a_sweep_equals_an_online_run(method, family):
+    """Design doc §7, test 6: one logged sweep run gives the decision of every
+    threshold pair. Checked against on-line runs with the thresholds set."""
+    from dataclasses import replace
+
+    from argus_autonomy.config import SPRTConfig
+    from argus_autonomy.decision import first_passage, run_decision_mission
+
+    base = SPRTConfig(steer_clear=-4.595)
+    mpt = NOMINAL.dt_s / 60.0
+    for seed in (0, 1):
+        sw = run_decision_mission(NOMINAL, method, family, seed, sprt=base, sweep=True)
+        assert sw.decision == "UNDECIDED"
+        for a, b in ((4.595, -4.595), (10.0, -2.0), (30.0, -15.0)):
+            on = run_decision_mission(NOMINAL, method, family, seed,
+                                      sprt=replace(base, alert=a, clear=b))
+            d, t, _ = first_passage(sw.trace, a, b, mpt)
+            assert d == on.decision, (seed, a, b)
+            if d != "UNDECIDED":
+                assert t == pytest.approx(on.t_decision_min)
+
+
+def test_steer_clear_default_leaves_milestone_ii_unchanged():
+    """steer_clear=None reproduces the milestone (ii) M3 rows bit for bit."""
+    import csv
+    from pathlib import Path
+
+    from argus_autonomy.decision import run_decision_mission
+
+    rows = Path(__file__).resolve().parents[1] / "results" / "decoys_m2_runs.csv"
+    want = {(r["family"], int(r["seed"])): r for r in csv.DictReader(open(rows))
+            if r["variant"] == "M3" and int(r["seed"]) < 3}
+    for (fam, seed), r in want.items():
+        got = run_decision_mission(NOMINAL, "M3", fam, seed)
+        assert got.decision == r["decision"]
+        assert f"{got.t_decision_min}" == r["t_decision_min"] or (
+            got.decision == "UNDECIDED" and r["t_decision_min"] == "nan")

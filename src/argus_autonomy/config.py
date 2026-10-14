@@ -131,6 +131,11 @@ class SPRTConfig:
     # (flagged pixels) or "cue" (flagged pixels + ring). Not a test parameter but a
     # stopping rule: absence of evidence in unseen cue cells is not evidence of absence.
     clear_gate: str | None = "hotspot"   # adopted in milestone (ii); None = milestone (i)
+    # Threshold that triggers "the test would clear but the cue is unseen: go look there"
+    # steering. None -> same as `clear` (milestones i-ii). Milestone (iii) fixes it at
+    # -log 99 so that the pre-decision policy does not depend on (alert, clear), which
+    # makes every threshold pair's decision a first-passage time of one logged run.
+    steer_clear: float | None = None
 
     def omega_for(self, decoys: DecoyConfig) -> float:
         if self.omega is not None:
