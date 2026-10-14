@@ -64,7 +64,7 @@ class MissionConfig:
     prior: PriorConfig = field(default_factory=PriorConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
 
-    def with_(self, **kw) -> "MissionConfig":
+    def with_(self, **kw) -> MissionConfig:
         return replace(self, **kw)
 
 
@@ -94,6 +94,15 @@ class DecoyConfig:
     min_sep_fire: int = 6          # cells from the fire at launch (family A)
     p_sat_warm: float = 0.5        # probability a warm decoy shows in the satellite overpass
     max_tries: int = 1000          # rejection sampling budget for family B (needs a cue)
+    # Close look (hover/descend, 3x3 footprint): radiometric reading in {cold, warm, hot}.
+    # Rows: empty, fire, warm decoy, hot decoy. Fire and hot decoy are identical by design
+    # (decision D2): only growth separates them.
+    close_lik: tuple = ((0.90, 0.08, 0.02),
+                        (0.05, 0.15, 0.80),
+                        (0.10, 0.80, 0.10),
+                        (0.05, 0.15, 0.80))
+    close_radius: int = 1
+    t_close: int = 2               # ticks spent hovering for one close look
 
 
 @dataclass(frozen=True)
@@ -114,6 +123,14 @@ class SPRTConfig:
     # (sensor response equal to fire's); a 60-seed smoke test favoured it, the full
     # benchmark did not: more false alerts, no fewer missed fires (results/decoys_m1.md).
     omega: float | None = None
+
+    # Share of the satellite cue's excess that H1 attributes to fire (the rest to
+    # decoys, split like H0's). 1 = v1.1 milestone (i): under H1 every cue cell is fire.
+    phi: float = 1.0
+    # CLEAR only once every cell of this cue region has been seen: None, "hotspot"
+    # (flagged pixels) or "cue" (flagged pixels + ring). Not a test parameter but a
+    # stopping rule: absence of evidence in unseen cue cells is not evidence of absence.
+    clear_gate: str | None = "hotspot"   # adopted in milestone (ii); None = milestone (i)
 
     def omega_for(self, decoys: DecoyConfig) -> float:
         if self.omega is not None:

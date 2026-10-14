@@ -24,3 +24,5 @@ jobs:
         run: python experiments/run_benchmark.py --seeds 10 --workers 2
       - name: quick decoy benchmark (v1.1) to catch regressions in the decision pipeline
         run: python experiments/run_decoy_benchmark.py --quick --workers 2
+      - name: quick decoy benchmark, milestone (ii)
+        run: python experiments/run_decoy_benchmark_ii.py --quick --workers 2

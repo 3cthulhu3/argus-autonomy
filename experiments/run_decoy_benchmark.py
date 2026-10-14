@@ -29,9 +29,10 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # label -> (method, SPRTConfig)
 VARIANTS = {
-    "M0": ("M0", SPRTConfig()),
-    "M1": ("M1", SPRTConfig(omega=None)),          # default: H0 cue split matched to the generator
-    "M1, omega = 0": ("M1", SPRTConfig(omega=0.0)),  # ablation: whole cue explained by hot decoys
+    # milestone (i) is pinned to its own rules so that this script keeps reproducing it
+    "M0": ("M0", SPRTConfig(clear_gate=None)),
+    "M1": ("M1", SPRTConfig(omega=None, clear_gate=None)),
+    "M1, omega = 0": ("M1", SPRTConfig(omega=0.0, clear_gate=None)),  # ablation of the H0 cue split
 }
 
 

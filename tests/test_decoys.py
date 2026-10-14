@@ -185,3 +185,66 @@ def test_decision_missions_are_deterministic_and_safe():
         assert a.llr == b.llr
         assert a.geofence_violations == 0
         assert a.returned_to_base
+
+
+# ------------------------------------------------------------------ milestone (ii)
+def test_close_look_update_is_exact_bayes_and_predictive_is_normalised():
+    d = DecoyConfig()
+    lik = np.array(d.close_lik)
+    prior = np.zeros((K_CLASSES, 1, 1))
+    prior[EMPTY], prior[FIRE], prior[WARM], prior[HOT] = 0.6, 0.2, 0.1, 0.1
+    f = CategoricalFilter(prior, class_theta(CFG.sensor, d))
+    fp = (slice(0, 1), slice(0, 1))
+    assert f.predictive_close(fp, lik).sum() == pytest.approx(1.0)
+    for y in (0, 1, 2):
+        g = CategoricalFilter(prior, class_theta(CFG.sensor, d))
+        g.update_close(fp, np.array([[y]]), lik)
+        expect = prior[:, 0, 0] * lik[:, y]
+        np.testing.assert_allclose(g.probs[:, 0, 0], expect / expect.sum(), rtol=1e-9)
+
+
+def test_close_look_cannot_separate_fire_from_hot_decoy():
+    """Decision D2: whatever the close look reads, the fire:hot ratio is unchanged."""
+    d = DecoyConfig()
+    prior = np.zeros((K_CLASSES, 1, 1))
+    prior[EMPTY], prior[FIRE], prior[HOT] = 0.7, 0.2, 0.1
+    f = CategoricalFilter(prior, class_theta(CFG.sensor, d))
+    for y in (2, 1, 2, 0, 2):
+        f.update_close((slice(0, 1), slice(0, 1)), np.array([[y]]), np.array(d.close_lik))
+    b = f.probs[:, 0, 0]
+    assert b[FIRE] / b[HOT] == pytest.approx(2.0, rel=1e-9)
+
+
+def test_chernoff_drift_vanishes_when_the_hypotheses_agree():
+    from argus_autonomy.planners import Chernoff
+
+    sc = make_decoy_scenario(CFG, DecoyConfig(), "A", 8)
+    test = MultiModelTest.build(sc.prior, CFG, DecoyConfig(), SPRTConfig(), sc.wind_dir)
+    test.h0 = test.h1                          # identical beliefs: no look can discriminate
+    wide, close = Chernoff(CFG.sensor, np.array(DecoyConfig().close_lik)).drift_maps(test)
+    assert np.abs(wide).max() < 1e-9 and np.abs(close).max() < 1e-9
+
+
+def test_oracle_knows_every_decoy_under_both_hypotheses():
+    sc = make_decoy_scenario(CFG, DecoyConfig(), "B", 9)
+    test = MultiModelTest.build(sc.prior, CFG, DecoyConfig(), SPRTConfig(), sc.wind_dir, sc.decoys)
+    for k in (WARM, HOT):
+        m = sc.decoys == k
+        if m.any():
+            assert test.h1.probs[k][m].min() > 0.99 and test.h0.probs[k][m].min() > 0.99
+    assert test.h1.probs[WARM][sc.decoys == EMPTY].max() < 1e-5
+
+
+@pytest.mark.parametrize("seed", range(6))
+def test_clear_only_after_the_flagged_cue_has_been_seen(seed):
+    r = run_decision_mission(CFG, "M1", "B", seed)
+    if r.decision == "CLEAR":
+        assert r.cue_seen_at_decision == 1.0
+
+
+@pytest.mark.parametrize("method", ["M2", "M3", "OR"])
+def test_new_methods_respect_geofence_and_return_with_close_looks(method):
+    for fam, seed in (("A", 2), ("B", 3), ("C", 4)):
+        r = run_decision_mission(CFG, method, fam, seed)
+        assert r.geofence_violations == 0 and r.returned_to_base
+        assert r.reserve_left >= 0

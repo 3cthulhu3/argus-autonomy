@@ -5,9 +5,12 @@ Scenario families (design doc §3.2):
   B  decoys only, cue exists -> false-alert rate (the cue is a decoy)
   C  fire only              -> regression against v1.0
 
-Methods (design doc §6.1), milestone (i):
+Methods (design doc §6.1):
   M0  v1.0 occupancy filter; ALERT when any cell reaches 0.95; never CLEARs
-  M1  two-model sequential test; v1.0 info-rate planner on the H1 fire belief
+  M1  two-model sequential test; info-rate planner on P(any heat)
+  M2  two-model test; Chernoff planner (expected log-odds drift), wide camera only
+  M3  as M2 plus the close-look action
+  OR  oracle: as M3 with every decoy's location and class known (a delay bound, not a method)
 """
 
 from __future__ import annotations
@@ -20,12 +23,18 @@ from scipy.ndimage import binary_dilation, distance_transform_edt, label
 from .config import EMPTY, FIRE, WARM, DecoyConfig, MissionConfig, SPRTConfig
 from .hypothesis import ALERT, CLEAR, UNDECIDED, MultiModelTest
 from .metrics import boundary_error, f1_iou
-from .perception import OccupancyFilter, class_theta, observe_wide, satellite_prior
-from .planners import InfoRate, PlanContext
+from .perception import (
+    OccupancyFilter,
+    class_theta,
+    observe_close,
+    observe_wide,
+    satellite_prior,
+)
+from .planners import Chernoff, InfoRate, PlanContext
 from .safety import Geofence, RTBMonitor, advance
 from .world import Fire, class_map, place_decoys, rasterise_decoys
 
-METHODS = ("M0", "M1")
+METHODS = ("M0", "M1", "M2", "M3", "OR")
 CORRECT_RADIUS_CELLS = 4   # an alert is correct if it lies within 100 m of affected ground
 
 
@@ -129,6 +138,8 @@ class DecisionResult:
     returned_to_base: bool
     ticks_flown: int
     reserve_left: int
+    n_close_looks: int = 0
+    cue_seen_at_decision: float = float("nan")
     llr: list[float] = field(repr=False, default_factory=list)
 
     def summary(self) -> dict:
@@ -137,7 +148,8 @@ class DecisionResult:
 
 def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int,
                          dcfg: DecoyConfig | None = None, sprt: SPRTConfig | None = None,
-                         stop_on_clear: bool = True, plan_on: str = "heat") -> DecisionResult:
+                         stop_on_clear: bool = True, plan_on: str = "heat",
+                         min_drift: float | None = None) -> DecisionResult:
     dcfg = dcfg or DecoyConfig()
     sprt = sprt or SPRTConfig()
     if method not in METHODS:
@@ -145,17 +157,25 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
     sc = make_decoy_scenario(cfg, dcfg, family, seed)
     fence = Geofence(cfg.n, cfg.nfz)
     monitor = RTBMonitor(fence, cfg.base, cfg.speed, cfg.reserve_ticks)
-    planner = InfoRate(cfg.sensor)
     theta = class_theta(cfg.sensor, dcfg)
+    close_lik = np.asarray(dcfg.close_lik, float)
     fire, rng = sc.fire, sc.sensor_rng
     min_per_tick = cfg.dt_s / 60.0
+
+    info = InfoRate(cfg.sensor)
+    chern = None
+    if method in ("M2", "M3", "OR"):
+        kw = {} if min_drift is None else {"min_drift": min_drift}
+        chern = Chernoff(cfg.sensor, close_lik if method in ("M3", "OR") else None,
+                         dcfg.close_radius, dcfg.t_close, **kw)
 
     if method == "M0":
         filt = OccupancyFilter(sc.prior, cfg.sensor, cfg.model, sc.wind_dir, cfg.fire.wind_gain,
                                cfg.fire.burn_steps)
         test = None
     else:
-        test = MultiModelTest.build(sc.prior, cfg, dcfg, sprt, sc.wind_dir)
+        known = sc.decoys if method == "OR" else None
+        test = MultiModelTest.build(sc.prior, cfg, dcfg, sprt, sc.wind_dir, known)
         filt = None
 
     def belief() -> np.ndarray:
@@ -168,11 +188,37 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
             return belief()
         return 1.0 - test.h1.prob(EMPTY)
 
+    gate = None
+    if sprt.clear_gate is not None and test is not None:
+        lo = {"hotspot": cfg.prior.p_hotspot, "cue": cfg.prior.p_ring}[sprt.clear_gate]
+        gate = (sc.prior >= lo) & fence.allowed
+    seen = np.zeros((cfg.n, cfg.n), bool)
+    cue_seen = [float("nan")]   # fraction of flagged allowed cells seen when the decision was made
+
+    def gate_open() -> bool:
+        return gate is None or bool(seen[gate].all())
+
     pos, path, rtb, carry = cfg.base, [], False, 0.0
     remaining = cfg.budget_ticks
     decision, t_dec, where = UNDECIDED, float("nan"), None
     llr_log: list[float] = []
-    violations = 0
+    violations = n_close = 0
+    close_target, hover = None, 0
+    t = 0
+
+    def decide(now: int) -> None:
+        nonlocal decision, t_dec, where
+        if decision != UNDECIDED or test is None:
+            return
+        d = test.decision()
+        if d == CLEAR and not gate_open():
+            d = UNDECIDED          # cue not fully seen yet: keep looking
+        if d != UNDECIDED:
+            decision, t_dec = d, (now + 1) * min_per_tick
+            hs = (sc.prior >= cfg.prior.p_hotspot) & fence.allowed
+            cue_seen[0] = float(seen[hs].mean()) if hs.any() else float("nan")
+            if d == ALERT:
+                where = alert_location(test.h1.prob(FIRE))
 
     for t in range(cfg.budget_ticks):
         if t > 0 and t % cfg.fire.fire_step_ticks == 0:
@@ -180,30 +226,62 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
             (filt or test).predict()
 
         if not rtb and (monitor.must_return(pos, remaining) or (decision == CLEAR and stop_on_clear)):
-            rtb = True
+            rtb, close_target, hover = True, None, 0
             path = monitor.path_home(pos)
-        if not rtb and (t % cfg.replan_ticks == 0 or not path):
+
+        # ---------------------------------------------------------- close look in progress
+        if hover > 0:
+            remaining -= 1
+            hover -= 1
+            if hover == 0:
+                fp, y = observe_close(class_map(fire.affected, sc.decoys), pos, close_lik,
+                                      dcfg.close_radius, rng)
+                seen[fp] = True
+                llr_log.append(test.update_close(fp, y, close_lik))
+                n_close += 1
+                close_target = None
+                decide(t)
+            else:
+                llr_log.append(test.llr)
+            continue
+
+        if not rtb and close_target is None and (t % cfg.replan_ticks == 0 or not path):
             dist, pred = fence.distances_from(pos)
-            ctx = PlanContext(pos, plan_belief(), dist, monitor.feasible_mask(dist, remaining), cfg.speed, t)
-            path = fence.path(pred, pos, planner.plan(ctx))
+            feas = monitor.feasible_mask(dist, remaining)
+            pb = plan_belief()
+            if test is not None and decision == UNDECIDED and test.decision() == CLEAR and not gate_open():
+                # the test would clear, but part of the cue is unseen: go and look there
+                k = cfg.sensor.radius
+                near = binary_dilation(gate & ~seen, iterations=k)
+                wp = info.plan(PlanContext(pos, pb, dist, feas & near, cfg.speed, t))
+                mode = "wide"
+            elif chern is not None and decision == UNDECIDED:
+                feas_c = monitor.feasible_mask(dist, remaining - dcfg.t_close) if chern.close_lik is not None else None
+                wp, mode = chern.plan(PlanContext(pos, pb, dist, feas, cfg.speed, t), test, feas_c)
+            else:
+                wp, mode = info.plan(PlanContext(pos, pb, dist, feas, cfg.speed, t)), "wide"
+            path = fence.path(pred, pos, wp)
+            if mode == "close":
+                close_target = wp
 
         pos, path, carry = advance(pos, path, cfg.speed, carry)
         remaining -= 1
         violations += int(not fence.contains(pos))
 
+        if close_target is not None and pos == close_target:
+            hover = dcfg.t_close          # descend: the wide camera is off while hovering
+            llr_log.append(test.llr)
+            continue
+
         fp, z = observe_wide(class_map(fire.affected, sc.decoys), pos, theta, cfg.sensor.radius, rng)
+        seen[fp] = True
         if filt is not None:
             filt.update(fp, z)
             if decision == UNDECIDED and (filt.prob >= cfg.confirm_threshold).any():
                 decision, t_dec, where = ALERT, (t + 1) * min_per_tick, alert_location(filt.prob)
         else:
             llr_log.append(test.update(fp, z))
-            if decision == UNDECIDED:
-                d = test.decision()
-                if d != UNDECIDED:
-                    decision, t_dec = d, (t + 1) * min_per_tick
-                    if d == ALERT:
-                        where = alert_location(test.h1.prob(FIRE))
+            decide(t)
         if rtb and pos == cfg.base:
             break
 
@@ -228,5 +306,6 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
         t_decision_min=t_dec, alert_correct=correct, alert_error_m=err_m, alert_on_decoy=on_decoy,
         f1=f1, boundary_m=boundary_error(b, truth, cfg.cell_m) if sc.has_fire else float("nan"),
         geofence_violations=violations, returned_to_base=(pos == cfg.base),
-        ticks_flown=t + 1, reserve_left=remaining, llr=llr_log,
+        ticks_flown=t + 1, reserve_left=remaining, n_close_looks=n_close,
+        cue_seen_at_decision=cue_seen[0], llr=llr_log,
     )

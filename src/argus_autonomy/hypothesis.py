@@ -32,7 +32,8 @@ ALERT, CLEAR, UNDECIDED = "ALERT", "CLEAR", "UNDECIDED"
 
 
 def hypothesis_priors(sat: np.ndarray, background: float, sprt: SPRTConfig,
-                      decoys: DecoyConfig) -> tuple[np.ndarray, np.ndarray]:
+                      decoys: DecoyConfig, known: np.ndarray | None = None
+                      ) -> tuple[np.ndarray, np.ndarray]:
     """Per-cell class priors under H1 and H0 from the satellite map.
 
     Under H1 the satellite probability is fire mass.  Under H0 the *excess*
@@ -43,14 +44,42 @@ def hypothesis_priors(sat: np.ndarray, background: float, sprt: SPRTConfig,
     omega = sprt.omega_for(decoys)
     excess = np.clip(sat - background, 0.0, None)
 
+    phi = sprt.phi
     h1 = np.zeros((K_CLASSES,) + sat.shape)
-    h1[FIRE], h1[WARM], h1[HOT] = sat, sprt.rho_warm, sprt.rho_hot
+    h1[FIRE] = np.minimum(sat, background) + phi * excess
+    h1[WARM] = sprt.rho_warm + (1 - phi) * omega * excess
+    h1[HOT] = sprt.rho_hot + (1 - phi) * (1 - omega) * excess
     h1[EMPTY] = 1.0 - h1[1:].sum(axis=0)
 
     h0 = np.zeros_like(h1)
     h0[WARM] = sprt.rho_warm + omega * excess
     h0[HOT] = sprt.rho_hot + (1 - omega) * excess + np.minimum(sat, background)
     h0[EMPTY] = 1.0 - h0[1:].sum(axis=0)
+    if known is not None:
+        h1, h0 = _oracle(h1, h0, sat, background, known)
+    return h1, h0
+
+
+def _oracle(h1, h0, sat, background, known, certainty: float = 0.999):
+    """Oracle priors: every decoy's location and class is known to both models.
+
+    Decoy cells are their class; elsewhere there are no decoys, so H0 has
+    nothing but the background to explain the cue with.  A lower bound on
+    decision delay, not a method.
+    """
+    h1, h0 = h1.copy(), h0.copy()
+    h1[WARM] = h1[HOT] = 0.0
+    h0[WARM] = 0.0
+    h0[HOT] = np.minimum(sat, background)
+    for h in (h1, h0):
+        h[EMPTY] = 1.0 - h[1:].sum(axis=0)
+    h0[EMPTY] = 1.0 - h0[HOT]      # the cue's excess is empty ground under H0
+    for k in (WARM, HOT):
+        m = known == k
+        for h in (h1, h0):
+            h[:, m] = 0.0
+            h[k, m] = certainty
+            h[EMPTY, m] = 1.0 - certainty
     return h1, h0
 
 
@@ -64,9 +93,9 @@ class MultiModelTest:
 
     @classmethod
     def build(cls, sat: np.ndarray, cfg: MissionConfig, decoys: DecoyConfig, sprt: SPRTConfig,
-              wind_dir: float) -> MultiModelTest:
+              wind_dir: float, known_decoys: np.ndarray | None = None) -> MultiModelTest:
         theta = class_theta(cfg.sensor, decoys)
-        p1, p0 = hypothesis_priors(sat, cfg.prior.p_background, sprt, decoys)
+        p1, p0 = hypothesis_priors(sat, cfg.prior.p_background, sprt, decoys, known_decoys)
         q = spread_kernel(cfg.model, wind_dir, cfg.fire.wind_gain)
         return cls(
             h1=CategoricalFilter(p1, theta, q, cfg.fire.burn_steps),
@@ -88,6 +117,13 @@ class MultiModelTest:
         self.llr += self.h1.predictive_loglik(fp, z) - self.h0.predictive_loglik(fp, z)
         self.h1.update(fp, z)
         self.h0.update(fp, z)
+        return self.llr
+
+    def update_close(self, fp: tuple[slice, slice], y: np.ndarray, close_lik: np.ndarray) -> float:
+        self.llr += (self.h1.predictive_loglik_close(fp, y, close_lik)
+                     - self.h0.predictive_loglik_close(fp, y, close_lik))
+        self.h1.update_close(fp, y, close_lik)
+        self.h0.update_close(fp, y, close_lik)
         return self.llr
 
     def decision(self) -> str:

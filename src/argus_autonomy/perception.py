@@ -174,6 +174,15 @@ def observe_wide(classes: np.ndarray, pos: tuple[int, int], theta: np.ndarray, r
     return fp, z
 
 
+def observe_close(classes: np.ndarray, pos: tuple[int, int], close_lik: np.ndarray, radius: int,
+                  rng: np.random.Generator) -> tuple[tuple[slice, slice], np.ndarray]:
+    """Close look: one categorical reading per cell, y in {0 cold, 1 warm, 2 hot}."""
+    fp = footprint(pos, radius, classes.shape[0])
+    cdf = np.cumsum(close_lik[classes[fp]], axis=-1)
+    y = (rng.random(cdf.shape[:-1])[..., None] > cdf).sum(axis=-1)
+    return fp, np.minimum(y, close_lik.shape[1] - 1).astype(np.int8)
+
+
 class CategoricalFilter:
     """Per-cell categorical Bayes filter over {empty, fire, warm, hot}.
 
@@ -242,6 +251,27 @@ class CategoricalFilter:
         logp -= np.logaddexp.reduce(logp, axis=0)
         self.L[idx] = logp[1:] - logp[0]
 
+    # ------------------------------------------------------------------ close look
+    def predictive_close(self, fp: tuple[slice, slice], close_lik: np.ndarray) -> np.ndarray:
+        """Predictive P(y) per cell over the footprint, shape (n_out, h, w)."""
+        b = self.probs[(slice(None),) + fp]
+        return np.tensordot(close_lik.T, b, axes=1)
+
+    def predictive_loglik_close(self, fp, y: np.ndarray, close_lik: np.ndarray) -> float:
+        q = self.predictive_close(fp, close_lik)
+        py = np.take_along_axis(q, y[None].astype(np.intp), axis=0)[0]
+        return float(np.sum(np.log(np.clip(py, EPS, 1.0))))
+
+    def update_close(self, fp: tuple[slice, slice], y: np.ndarray, close_lik: np.ndarray) -> None:
+        """Exact Bayes for a categorical reading; same probability floor as ``update``."""
+        idx = (slice(None),) + fp
+        ll = np.log(close_lik)[:, y.astype(np.intp)]            # (K, h, w): log p(y | class)
+        lg = self.L[idx] + (ll[self.cls] - ll[EMPTY][None])
+        full = np.concatenate([np.zeros((1,) + lg.shape[1:]), lg])
+        logp = np.maximum(full - np.logaddexp.reduce(full, axis=0), LOG_FLOOR)
+        logp -= np.logaddexp.reduce(logp, axis=0)
+        self.L[idx] = logp[1:] - logp[0]
+
     def predict(self) -> None:
         if self.q is None:
             return
@@ -269,6 +299,7 @@ __all__ = [
     "mean_field_ignition",
     "mutual_information",
     "observe",
+    "observe_close",
     "observe_wide",
     "satellite_prior",
     "spread_kernel",
