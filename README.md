@@ -53,16 +53,16 @@ Tempering the prior fixes most of this. Raising the background prior from 0.002 
 
 The estimator above cannot tell a fire from a sunlit rock or a contained burn: to it, a hot spot that stays hot is a fire. A probe with three static decoys confirms at least one as fire in **50/100** missions ([`results/probe_decoys.json`](results/probe_decoys.json)).
 
-v1.1 replaces the per-cell threshold with a sequential test between two models, *a fire that spreads* and *things that only stay hot*, so that growth, and the absence of predicted growth, become the evidence. First results (milestone (i), thresholds fixed a priori, not tuned):
+v1.1 replaces the per-cell threshold with a sequential test between two models, *a fire that spreads* and *things that only stay hot*, so that growth, and the absence of predicted growth, become the evidence. Thresholds are fixed a priori, not tuned. From milestone (ii) on, every free choice is screened on seeds the benchmark never sees; two earlier choices were not, and the design doc says which.
 
-| | v1.0 | two-model test |
-|---|---|---|
-| false alert when the satellite cue is a decoy (1000 missions) | 100 % | 2.2 % |
-| alert placed on a decoy instead of the fire (500) | 9.8 % | 0.0 % |
-| real fire dismissed (fire + decoys, 500) | 0 % | **2.8 %** |
-| map F1, fire only (500) | 0.926 | 0.926 |
+| | v1.0 | two-model test (i) | + CLEAR gate (ii) | + close look (ii) |
+|---|---|---|---|---|
+| false alert when the satellite cue is a decoy (1000 missions) | 100 % | 2.2 % | 2.2 % | **1.6 %** |
+| alert placed on a decoy instead of the fire (500) | 9.8 % | 0.0 % | 0.0 % | 0.4 % |
+| real fire dismissed (fire + decoys, 500) | 0 % | 2.8 % | **0.6 %** | 0.6 % |
+| median time to dismiss a decoy cue | — | 4.2 min | 4.5 min | 4.5 min |
 
-The last error is the one that matters, and it is analysed rather than hidden: in 9 of the 14 misses the drone rejected a decoy in the cue and went home without ever seeing the fire ([`results/decoys_m1_misses.md`](results/decoys_m1_misses.md)). Design, decisions and the full account: [`docs/design/v1.1-decoy-discrimination.md`](docs/design/v1.1-decoy-discrimination.md).
+The gate (*no CLEAR until every flagged pixel has been seen*) fixed 11 of 14 dismissed fires and broke nothing. Three things did not work and are reported as such: an active-hypothesis-testing planner added nothing over plain heat search; the close look helps against warm decoys but wastes time on hot ones, because a contained burn differs from a young fire only in growth; and a pre-registered prediction about the H1 prior was refuted. Design, decisions and the full account: [`docs/design/v1.1-decoy-discrimination.md`](docs/design/v1.1-decoy-discrimination.md) (§11–12).
 
 ## Method
 
