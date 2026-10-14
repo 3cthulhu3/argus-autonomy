@@ -49,20 +49,34 @@ The prediction step alone tells the underlying story. With no observations, the 
 
 Tempering the prior fixes most of this. Raising the background prior from 0.002 to 0.01 cuts catastrophic runs from 13 to 3 and costs nothing in nominal conditions (F1 0.925 → 0.929). The fix works, but it is a hand-tuned knob, not a principled treatment of prior misspecification ([`results/prior_tempering.md`](results/prior_tempering.md)).
 
-## In progress: decoys (v1.1)
+## Decoys and a calibrated decision (v1.1)
 
-The estimator above cannot tell a fire from a sunlit rock or a contained burn: to it, a hot spot that stays hot is a fire. A probe with three static decoys confirms at least one as fire in **50/100** missions ([`results/probe_decoys.json`](results/probe_decoys.json)).
+The v1.0 estimator cannot tell a fire from a sunlit rock or a contained burn: to it, a hot spot that stays hot is a fire. A probe with three static decoys confirms at least one as fire in **50/100** missions ([`results/probe_decoys.json`](results/probe_decoys.json)).
 
-v1.1 replaces the per-cell threshold with a sequential test between two models, *a fire that spreads* and *things that only stay hot*, so that growth, and the absence of predicted growth, become the evidence. Thresholds are fixed a priori, not tuned. From milestone (ii) on, every free choice is screened on seeds the benchmark never sees; two earlier choices were not, and the design doc says which.
+v1.1 changes the output from a map to a **decision with a time stamp**: ALERT (*there is a spreading fire, here*) or CLEAR (*nothing in the flagged pixels spreads*). A sequential test between two models, *a fire that spreads* and *things that only stay hot*, makes growth, and the absence of predicted growth, the evidence. The thresholds were then chosen on one set of seeds by a rule fixed in advance, and reported on another set the choice never saw.
 
-| | v1.0 | two-model test (i) | + CLEAR gate (ii) | + close look (ii) |
-|---|---|---|---|---|
-| false alert when the satellite cue is a decoy (1000 missions) | 100 % | 2.2 % | 2.2 % | **1.6 %** |
-| alert placed on a decoy instead of the fire (500) | 9.8 % | 0.0 % | 0.0 % | 0.4 % |
-| real fire dismissed (fire + decoys, 500) | 0 % | 2.8 % | **0.6 %** | 0.6 % |
-| median time to dismiss a decoy cue | — | 4.2 min | 4.5 min | 4.5 min |
+<p align="center"><img src="media/det_curves.png" width="520" alt="Median time to correct alert against false-alert rate for three planners; the chosen operating points are marked"></p>
 
-The gate (*no CLEAR until every flagged pixel has been seen*) fixed 11 of 14 dismissed fires and broke nothing. Three things did not work and are reported as such: an active-hypothesis-testing planner added nothing over plain heat search; the close look helps against warm decoys but wastes time on hot ones, because a contained burn differs from a young fire only in growth; and a pre-registered prediction about the H1 prior was refuted. Design, decisions and the full account: [`docs/design/v1.1-decoy-discrimination.md`](docs/design/v1.1-decoy-discrimination.md) (§11–12).
+Held-out seeds, M3 (two-model test, CLEAR gate, close look) re-flown on-line at the chosen thresholds:
+
+| | v1.0 | v1.1, thresholds a priori | **v1.1, operating point** |
+|---|---|---|---|
+| false alert when the satellite cue is a decoy (1000 missions) | 100 %¹ | 1.8 % | **1.2 %** (0.6–2.1) |
+| real fire dismissed (1000) | 0 %² | 0.2 % | 0.2 % |
+| alert placed on a decoy instead of the fire (1000) | 9.8 %¹ | 0.0 % | 0.0 % |
+| median time to correct alert | 1.83 min¹ | 2.17 min | 2.17 min |
+| median time to dismiss a decoy cue | — | 4.50 min | 6.00 min |
+| geofence violations · returns to base | | 0 · 2000/2000 | 0 · 2000/2000 |
+
+<sub>¹ milestone (i) seeds. ² v1.0 cannot dismiss anything, so it never dismisses a real fire either. Intervals: Clopper–Pearson 95 %.</sub>
+
+What it costs and what it does not fix, measured rather than hidden:
+- **The 2 % false-alert target is met in point estimate, not certified.** The upper bound is 2.1 %; 1000 held-out missions cannot certify less, about 2000 could.
+- **The remaining missed fires are coverage misses.** In all four (two per seed set) the test statistic never rose above 0.7 before the CLEAR; the fire became visible minutes later. No threshold fixes that. A CLEAR means *nothing spreads in the flagged pixels*, not *no fire*.
+- **Overconfidence is real, but not where it was expected.** A pre-registered prediction of orders-of-magnitude overconfidence on decoys was refuted (factor ≈ 2 at the a-priori threshold). The overconfidence that matters sits on the CLEAR side, and the gate (*no CLEAR until every flagged pixel has been seen*) is what contains it ([`media/reliability.png`](media/reliability.png)).
+- **Three ideas did not work** and are reported as such: an active-hypothesis-testing planner adds nothing over plain heat search; a close look helps against warm decoys but wastes time on hot ones, because a contained burn differs from a young fire only in growth; a prediction about the H1 prior was refuted.
+
+Every free choice from milestone (ii) on was screened on seeds the benchmark never sees, and each milestone's protocol was committed before it ran. Design, decisions, nine pre-registered expectations (four confirmed, five refuted or not supported) and the full account: [`docs/design/v1.1-decoy-discrimination.md`](docs/design/v1.1-decoy-discrimination.md).
 
 ## Method
 
@@ -81,7 +95,7 @@ The [technical report](docs/report/report.pdf) gives the equations, the experime
 
 ```bash
 pip install -e ".[dev]"          # Python ≥ 3.10; numpy, scipy (+ matplotlib, imageio for figures)
-pytest -q                        # 23 tests: Bayes update, monotonicity, geofence, RTB, metrics
+pytest -q                        # 57 tests: Bayes update, regression invariants, geofence, RTB, first passage
 
 argus-demo --planner info-rate --seed 47 --gif mission.gif
 argus-demo --planner prior-lawnmower --condition degraded-prior --seed 68
@@ -90,6 +104,13 @@ python experiments/run_benchmark.py --seeds 100          # ~1 min on 2 cores →
 python experiments/calibrate_prediction.py --seeds 50
 python experiments/ablation_prior_tempering.py --seeds 100
 python experiments/make_media.py
+
+# v1.1: decoys, threshold sweep, operating point (about an hour on 2 cores)
+python experiments/run_decoy_benchmark.py
+python experiments/run_decoy_benchmark_ii.py
+python experiments/run_sweep.py --split select && (cd experiments && python analyse_sweep.py --split select)
+python experiments/run_sweep.py --split heldout && (cd experiments && python analyse_sweep.py --split heldout)
+(cd experiments && python run_operating_point.py)
 ```
 
 Every number in this README and in the report comes from the files these scripts write. Results are deterministic for a given seed.
@@ -97,10 +118,11 @@ Every number in this README and in the report comes from the files these scripts
 ## Scope and honest limitations
 
 - **2-D grid world.** No vehicle dynamics, wind on the aircraft, terrain, smoke occlusion or communication loss.
-- **Independent per-cell sensor noise.** Real thermal false alarms (sun glint, hot rock) are spatially correlated.
+- **Independent per-cell sensor noise; illustrative sensor and decoy numbers.** v1.1 models persistent decoys, but the class-conditional sensor rates and the decoy mix are assumptions, not measurements. The results describe the method's behaviour, not field performance.
 - **Toy fire model.** It is not Rothermel/FARSITE, and the spread parameters are not fitted to real fire data.
 - **Simple safety monitor.** It is a checkable runtime invariant on a grid, not a formal reachability guarantee for continuous dynamics.
 - **One vehicle and a greedy one-step planner.** There is no multi-step lookahead and no multi-UAV coordination.
+- **One fire per scenario, static decoys.** Several simultaneous fires and moving heat sources are out of scope.
 
 ## Citation
 
