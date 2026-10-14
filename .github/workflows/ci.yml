@@ -26,3 +26,7 @@ jobs:
         run: python experiments/run_decoy_benchmark.py --quick --workers 2
       - name: quick decoy benchmark, milestone (ii)
         run: python experiments/run_decoy_benchmark_ii.py --quick --workers 2
+      - name: quick threshold sweep, milestone (iii)
+        run: |
+          python experiments/run_sweep.py --split select --quick --workers 2
+          cd experiments && python analyse_sweep.py --split select --quick > /dev/null
