@@ -87,6 +87,16 @@ Which of the simulation's assumptions can the public satellite record check? A p
 - **Real cues are 2–6.5 times larger than simulated ones, and this matters, but not as predicted.** Re-run with 400 m satellite pixels ([`docs/design/robustness-viirs-pixel.md`](docs/design/robustness-viirs-pixel.md)): false alerts on decoy cues fall to 0 of 1000 and dismissal gets faster, but real fires dismissed rise from 2 to 6 of 1000 at the operating point (from 2 to 13 at the a-priori thresholds). A larger cue yields cold evidence faster, so the drone dismisses it before searching the ring where the fire lies. The operating point does not transfer across satellite geometries; coverage misses are the open problem for v1.2.
 - **No pre-registered expectation held in all three countries.** One failed because the protocol was wrong: static sources are visible almost only at night. One inference drawn from the data, that dismissal would get slower, was refuted by the re-run. All of it is reported.
 
+## v1.2 attempt: coverage misses (not adopted)
+
+Pre-registered test of ring-aware CLEAR rules against the coverage misses above, across 200 m and 400 m satellite pixels, with fresh held-out seeds ([`docs/design/v1.2-coverage-misses.md`](docs/design/v1.2-coverage-misses.md)):
+
+- The best rule, which requires 75 % of the ring to be seen, **caught every coverage miss of the v1.1 rule** on held-out seeds.
+- It **missed two other fires** that v1.1 caught. Net result: 4 missed fires against 6.
+- It cost 5.3 min more per decoy at 400 m, and it left 5.7 % of decoy missions undecided, above the 5 % bound.
+- **Two of four expectations were refuted.** The cause is a flaw in the selection procedure: when many thresholds show zero misses, choosing the fastest picks the least vetted one.
+- **The rule is not adopted.** The selection rule and the estimator are fixed first.
+
 ## Method
 
 | component | what it does | file |

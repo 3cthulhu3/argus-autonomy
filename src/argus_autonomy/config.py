@@ -136,6 +136,14 @@ class SPRTConfig:
     # -log 99 so that the pre-decision policy does not depend on (alert, clear), which
     # makes every threshold pair's decision a first-passage time of one logged run.
     steer_clear: float | None = None
+    # v1.2 ring-aware stopping rules (0 = off = v1.1). The ring is the band of pixels
+    # around the flagged ones (prior p_ring), where the coverage misses of v1.1 lie.
+    #   ring_cover   CLEAR needs at least this fraction of allowed ring cells seen.
+    #   dwell_ticks  CLEAR needs the log-odds to have stayed <= steer_clear, with the
+    #                flagged pixels seen, for this many ticks while the planner searches
+    #                the ring; waived once every ring cell has been seen.
+    ring_cover: float = 0.0
+    dwell_ticks: int = 0
 
     def omega_for(self, decoys: DecoyConfig) -> float:
         if self.omega is not None:

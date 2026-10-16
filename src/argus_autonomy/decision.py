@@ -140,6 +140,7 @@ class DecisionResult:
     reserve_left: int
     n_close_looks: int = 0
     cue_seen_at_decision: float = float("nan")
+    ring_seen_at_decision: float = float("nan")   # v1.2: fraction of ring cells seen (nan if no ring rule)
     llr: list[float] = field(repr=False, default_factory=list)
     # sweep mode only: (tick, log-odds, gate open) after every observation, and for
     # each alert level the first tick the log-odds reached it with where the alert lands
@@ -204,9 +205,29 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
         gate = (sc.prior >= lo) & fence.allowed
     seen = np.zeros((cfg.n, cfg.n), bool)
     cue_seen = [float("nan")]   # fraction of flagged allowed cells seen when the decision was made
+    ring_seen = [float("nan")]
+
+    ring = None
+    if (sprt.ring_cover > 0 or sprt.dwell_ticks > 0) and gate is not None:
+        ring = (sc.prior >= cfg.prior.p_ring) & (sc.prior < cfg.prior.p_hotspot) & fence.allowed
+    dwell_start: list = [None]
+    now_tick = [0]
+
+    def flagged_seen() -> bool:
+        return gate is None or bool(seen[gate].all())
+
+    def ring_frac() -> float:
+        return float(seen[ring].mean()) if ring is not None and ring.any() else 1.0
 
     def gate_open() -> bool:
-        return gate is None or bool(seen[gate].all())
+        if not flagged_seen():
+            return False
+        if sprt.ring_cover > 0 and ring_frac() < sprt.ring_cover:
+            return False
+        if sprt.dwell_ticks > 0 and ring_frac() < 1.0:
+            if dwell_start[0] is None or now_tick[0] - dwell_start[0] < sprt.dwell_ticks:
+                return False
+        return True
 
     pos, path, rtb, carry = cfg.base, [], False, 0.0
     remaining = cfg.budget_ticks
@@ -224,6 +245,13 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
     pending = sorted(alert_levels)
 
     def log(now: int) -> None:
+        now_tick[0] = now
+        if sprt.dwell_ticks > 0:      # the dwell runs while the test would clear and the flagged pixels are seen
+            if test.llr <= steer and flagged_seen():
+                if dwell_start[0] is None:
+                    dwell_start[0] = now
+            else:
+                dwell_start[0] = None
         llr_log.append(test.llr)
         if not sweep:
             return
@@ -247,6 +275,8 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
             decision, t_dec = d, (now + 1) * min_per_tick
             hs = (sc.prior >= cfg.prior.p_hotspot) & fence.allowed
             cue_seen[0] = float(seen[hs].mean()) if hs.any() else float("nan")
+            if ring is not None:
+                ring_seen[0] = ring_frac()
             if d == ALERT:
                 where = alert_location(test.h1.prob(FIRE))
 
@@ -283,8 +313,13 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
             if test is not None and decision == UNDECIDED and test.llr <= steer and not gate_open():
                 # the test would clear, but part of the cue is unseen: go and look there
                 k = cfg.sensor.radius
-                near = binary_dilation(gate & ~seen, iterations=k)
-                wp = info.plan(PlanContext(pos, pb, dist, feas & near, cfg.speed, t))
+                if flagged_seen() and ring is not None:   # v1.2: then search the ring
+                    near = binary_dilation(ring & ~seen, iterations=k) & feas
+                    if not near.any():
+                        near = feas
+                else:
+                    near = binary_dilation(gate & ~seen, iterations=k) & feas
+                wp = info.plan(PlanContext(pos, pb, dist, near, cfg.speed, t))
                 mode = "wide"
             elif chern is not None and decision == UNDECIDED:
                 feas_c = monitor.feasible_mask(dist, remaining - dcfg.t_close) if chern.close_lik is not None else None
@@ -339,7 +374,7 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
         f1=f1, boundary_m=boundary_error(b, truth, cfg.cell_m) if sc.has_fire else float("nan"),
         geofence_violations=violations, returned_to_base=(pos == cfg.base),
         ticks_flown=t + 1, reserve_left=remaining, n_close_looks=n_close,
-        cue_seen_at_decision=cue_seen[0], llr=llr_log, trace=trace, crossings=crossings,
+        cue_seen_at_decision=cue_seen[0], ring_seen_at_decision=ring_seen[0], llr=llr_log, trace=trace, crossings=crossings,
     )
 
 

@@ -291,3 +291,82 @@ def test_steer_clear_default_leaves_milestone_ii_unchanged():
         assert got.decision == r["decision"]
         assert f"{got.t_decision_min}" == r["t_decision_min"] or (
             got.decision == "UNDECIDED" and r["t_decision_min"] == "nan")
+
+
+# ---------------------------------------------------------------- v1.2: ring-aware CLEAR
+
+V12 = {"ring_cover": dict(ring_cover=0.5), "dwell": dict(dwell_ticks=12)}
+
+
+def test_v12_rules_off_reproduce_v11_sweep_traces():
+    """ring_cover = 0 and dwell_ticks = 0 leave the v1.1 sweep log unchanged."""
+    import gzip
+    import json
+    from pathlib import Path
+
+    from argus_autonomy.config import SPRTConfig
+    from argus_autonomy.decision import run_decision_mission
+
+    path = Path(__file__).resolve().parents[1] / "results" / "sweep_select.jsonl.gz"
+    want = {}
+    with gzip.open(path, "rt") as fh:
+        for line in fh:
+            r = json.loads(line)
+            if r["method"] == "M3" and r["seed"] < 2:
+                want[(r["family"], r["seed"])] = r["trace"]
+    for (fam, seed), tr in want.items():
+        got = run_decision_mission(NOMINAL, "M3", fam, seed, sweep=True,
+                                   sprt=SPRTConfig(steer_clear=-4.595, ring_cover=0.0, dwell_ticks=0))
+        assert [[int(t), round(float(l), 4), bool(g)] for t, l, g in got.trace] == tr
+
+
+@pytest.mark.parametrize("rule", sorted(V12))
+@pytest.mark.parametrize("family", ["A", "B", "C"])
+def test_v12_first_passage_equals_online(rule, family):
+    from dataclasses import replace
+
+    from argus_autonomy.config import SPRTConfig
+    from argus_autonomy.decision import first_passage, run_decision_mission
+
+    base = SPRTConfig(steer_clear=-4.595, **V12[rule])
+    mpt = NOMINAL.dt_s / 60.0
+    for seed in (5000, 5001):
+        sw = run_decision_mission(NOMINAL, "M3", family, seed, sprt=base, sweep=True)
+        for a, b in ((4.595, -4.595), (6.0, -10.0)):
+            on = run_decision_mission(NOMINAL, "M3", family, seed, sprt=replace(base, alert=a, clear=b))
+            d, t, _ = first_passage(sw.trace, a, b, mpt)
+            assert d == on.decision, (seed, a, b)
+            if d != "UNDECIDED":
+                assert t == pytest.approx(on.t_decision_min)
+
+
+def test_ring_cover_holds_at_every_clear():
+    from argus_autonomy.config import SPRTConfig
+    from argus_autonomy.decision import run_decision_mission
+
+    n_clear = 0
+    for seed in range(5000, 5012):
+        r = run_decision_mission(NOMINAL, "M3", "B", seed,
+                                 sprt=SPRTConfig(steer_clear=-4.595, ring_cover=0.5))
+        if r.decision == "CLEAR":
+            n_clear += 1
+            assert r.ring_seen_at_decision >= 0.5
+    assert n_clear > 0
+
+
+def test_dwell_holds_at_every_clear():
+    """A CLEAR comes only after dwell_ticks ticks with log-odds <= steer_clear, unless
+    the whole ring has been seen. One log entry per tick, so the log is indexable by tick."""
+    from argus_autonomy.config import SPRTConfig
+    from argus_autonomy.decision import run_decision_mission
+
+    n_clear = 0
+    for seed in range(5000, 5012):
+        r = run_decision_mission(NOMINAL, "M3", "B", seed,
+                                 sprt=SPRTConfig(steer_clear=-4.595, dwell_ticks=12))
+        if r.decision == "CLEAR":
+            n_clear += 1
+            tc = round(r.t_decision_min / (NOMINAL.dt_s / 60.0)) - 1
+            if r.ring_seen_at_decision < 1.0:
+                assert all(x <= -4.595 for x in r.llr[tc - 12: tc + 1])
+    assert n_clear > 0

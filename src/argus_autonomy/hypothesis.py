@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.special import expit
 
 from .config import (
     EMPTY,
@@ -106,7 +107,7 @@ class MultiModelTest:
 
     @property
     def p_h1(self) -> float:
-        return float(1.0 / (1.0 + np.exp(-self.llr)))
+        return float(expit(self.llr))   # 1 / (1 + e^-llr), without overflow for very negative llr
 
     def predict(self) -> None:
         self.h1.predict()
