@@ -1,6 +1,6 @@
 # First contact with real data: VIIRS active fires, 2024
 
-Status: **protocol fixed 2026-10-16, before any distribution in the data was computed or looked at.** At the time of writing, only the column headers and the row counts of the three files had been read.
+Status: **protocol fixed 2026-10-16 (commit `9129bf9`), before any distribution in the data was computed or looked at;** at that point only the column headers and row counts had been read. **Results in §9.**
 
 ## 1. Why
 
@@ -50,3 +50,27 @@ Analysis only. No simulation parameter is changed in this note. If a parameter s
 ## 8. Source
 
 NASA FIRMS (Fire Information for Resource Management System), VIIRS S-NPP 375 m active-fire archive, accessed October 2026. Algorithm: Schroeder et al., *Remote Sensing of Environment* 143, 2014.
+
+## 9. Results
+
+Full tables: [`results/firms_2024.md`](../../results/firms_2024.md). No expectation held in all three countries.
+
+| | Germany | Greece | Portugal |
+|---|---|---|---|
+| cues (dispatch-sized clusters) | 7615 | 2250 | 2215 |
+| **E10** labelled static sources, share of cues | 70.9 % ✓ | 23.6 % ✗ (≤ 20 % expected) | 8.2 % ✓ |
+| **E11** median vegetation-cue area / simulated | 1.9 × ✗ (≥ 2 expected) | 2.8 × ✓ | 6.5 × ✓ |
+| single-detection vegetation cues | 80.6 % | 67.9 % | 45.1 % |
+| **E12** vegetation cues on persistent sites | 15.1 % ✓ | 5.8 % ✓ | 1.2 % ✗ |
+| **E13** static cues recur at the next overpass | 32.2 % ✗ | 0.2 % ✗ | 1.1 % ✗ |
+| **E13** vegetation cues recur at the next overpass | 1.8 % ✓ | 6.5 % ✓ | 23.3 % ✓ |
+
+**E13 failed because the window was wrong, not because persistence is absent.** Labelled static sources are detected almost only at night (79 % of cues in Germany, 99 % in Greece and Portugal), and S-NPP alternates night and day passes, so a 6–18 h window pairs a night detection with a day pass that cannot see it. The code was checked; the error is in the protocol. A window of 18–30 h (the next night), chosen *after* seeing this and therefore exploratory, gives static recurrence of 46 %, 39 % and 29 % against 5–8 % for vegetation cues. Persistence does separate the two classes at satellite cadence, by a factor of 4 to 9, but a static source is seen on only a third to a half of nights. It is a statistical signature, not a deterministic one, which is how the v1.1 sensor model already treats it (hit rate 0.70–0.85 per look, not 1).
+
+**What the results say about the simulation.**
+
+1. **Most real decoy cues are already labelled, and therefore maskable.** In Germany 71 % of all cues are known static sources. A dispatcher would remove them with a lookup table before any drone flies; the drone's discrimination problem begins with what the mask misses. The v1.1 family B is that residual, not the raw stream.
+2. **The residual is not empty.** After masking, 15 % (Germany), 6 % (Greece) and 1 % (Portugal) of the remaining cues sit on sites seen on 10 or more days over at least two months. Exploratory: these sites are night-dominated (92 %, 75 %, 100 %) like the labelled static sources and unlike other vegetation cues (25 %, 19 %, 47 %), so they are most likely unflagged industrial sources. These shares are **lower bounds** on the decoy share: agricultural and other contained burns, the hot decoys of v1.1, carry the same label as wildfires and are invisible to this analysis. The data therefore neither support nor contradict the test's dispatch prior of 0.5; they bound the decoy share from below only.
+3. **Real cues are 2–6.5 times larger than simulated ones, and this is the finding with consequences.** The simulation flags 200 m pixels around a fire nine minutes old; VIIRS pixels are 375 m, and between 45 % and 81 % of real vegetation cues are a single pixel, so the difference is largely resolution. It matters because the CLEAR gate requires every flagged pixel to be seen. Exploratory: an ideal sweep of the median real cue takes 87 s (Germany), 130 s (Greece) and 297 s (Portugal), against 46 s for the simulated one; the 75th percentile in Portugal takes 11 minutes, more than a third of the endurance. The v1.1 time to CLEAR (6 min at the operating point) is therefore optimistic for real cues, and the gap grows with fire activity.
+
+**Proposed, not done (per §7).** Re-run the v1.1 held-out benchmark with a 375 m satellite pixel (`coarse_factor` = 15) as a robustness check of the operating point and of the time to CLEAR. That is a change to the simulation and gets its own pre-registration.
