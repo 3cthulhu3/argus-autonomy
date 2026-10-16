@@ -1,6 +1,6 @@
 # Robustness: the v1.1 operating point under VIIRS-sized satellite pixels
 
-Status: **protocol fixed 2026-10-16, before any mission with the new pixel size was flown.** The only runs before this commit were a shape check of the scenario generator on seeds 5000–5004, which looked at flagged-pixel counts and not at decisions.
+Status: **protocol fixed 2026-10-16 (commit `11c313f`), before any mission with the new pixel size was flown. Results in §6.** The only runs before this commit were a shape check of the scenario generator on seeds 5000–5004, which looked at flagged-pixel counts and not at decisions.
 
 ## 1. Why
 
@@ -48,4 +48,28 @@ The grid is 1.6 km, so 400 m pixels make it only 4 × 4 pixels. The ring of one 
 
 ## 6. Results
 
-*(to be filled after the run)*
+Full tables: [`results/robustness_viirs_pixel.md`](../../results/robustness_viirs_pixel.md). M3, held-out seeds, paired with 200 m pixels on identical seeds.
+
+| at the operating point (a = 6, b = −10) | 200 m | 400 m |
+|---|---|---|
+| false alerts on a decoy cue (1000) | 1.2 % (0.6–2.1) | **0.0 %** (0–0.4) |
+| real fire CLEARed (1000) | 0.2 % | 0.6 % (0.2–1.3) |
+| time to CLEAR a decoy cue, median | 6.00 min | **5.33 min** |
+| time to correct alert, median | 2.17 min | 2.33 min |
+| undecided (B / A ∪ C) | 2 / 0 | 0 / 0 |
+| geofence violations · returns to base | 0 · 2000/2000 | 0 · 2000/2000 |
+
+At the a-priori thresholds the same shift is stronger: false alerts 18 → 1 (exact McNemar p < 10⁻⁴), real fires CLEARed 2 → 13 (p = 0.003).
+
+**Pre-registered expectations:**
+- **E14 refuted, in direction.** The time to CLEAR fell rather than rose: −0.67 min in median, faster in 568 and slower in 383 paired missions (sign test p < 10⁻⁸). The reasoning behind E14 was that the CLEAR gate makes dismissal coverage-limited. It is not: in v1.1 the median CLEAR (4.5–6 min) is far longer than the time needed to sweep even a 400 m pixel (about 1.5 min). Dismissal is limited by *evidence*. A larger cue holds more cells that the drone sees cold, and under the independent-cell model each cold cue cell adds evidence against fire. The threshold is reached sooner.
+- **E15 met.** No false alert in 1000 decoy missions.
+- **E16 not met.** 6 of 1000 real fires CLEARed against 2 (5 vs 1 discordant, p = 0.22 at this n). At ±log 99 the rise is significant.
+- **E17 not met.** The median alert time rose by 0.17 min, not 0.25. The paired shift is consistent in direction (slower in 441, faster in 115) but small: the median paired difference is zero.
+
+**Why fires are missed (post hoc, not pre-registered).** The 13 missions that CLEAR a fire at either threshold pair are 7 distinct fires, because families A and C share a fire on the same seed. In all 7, Λ never rose above its prior value of 0 before the CLEAR. In 6, at most a third of the burning area at launch lay inside the flagged pixels (none of it in 3). In 12 of the 13 missions, Λ climbed to between 124 and 1613 nats later in the sweep run; in the 13th (A 684) the fire was never found. These are the coverage misses of v1.1 (§14 of the v1.1 design doc), made more frequent: the larger cue yields cold evidence faster, so the drone dismisses the cue before it reaches the ring where the fire is.
+
+**What this means.**
+1. **The v1.1 operating point does not transfer across pixel sizes.** It moves along the trade-off between false alerts and missed fires: with 400 m pixels, false alerts vanish and missed fires rise (2 → 6 at the operating point, not significant at this n; 2 → 13 at ±log 99, significant). Thresholds chosen in one satellite geometry should not be deployed in another without re-selection.
+2. **The FIRMS note's inference about time to CLEAR was wrong** ([`firms-2024-contact.md`](firms-2024-contact.md), §9, point 3). Real cues being larger does not make the simulated CLEAR optimistic. It makes the simulated *missed-fire rate* optimistic. That note is amended accordingly.
+3. **The design question for v1.2 is sharper.** Coverage misses are now the dominant error in every configuration tested. A CLEAR that is a statement about the flagged pixels only becomes riskier as the pixels grow. Candidates are a gate over the ring as well, which was too slow in v1.1, §12, or a short search of the ring after the test would clear. Each would be pre-registered and run on selection seeds first.
