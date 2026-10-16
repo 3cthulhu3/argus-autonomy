@@ -1,3 +1,17 @@
+# Releasing v1.1.0
+
+v1.0.0 is already public, so only these steps remain.
+
+1. **Merge** pull request #1 (`design/v1.1-decoys` → `main`) once CI is green.
+2. **Check the date** in `CITATION.cff` (`date-released`) and correct it if the release happens on another day.
+3. **Zenodo:** if the toggle was enabled for v1.0.0, nothing to do; Zenodo archives every new release under the same concept DOI. If it was not, enable it *now*, before step 4.
+4. **Release:** *Releases → Draft a new release*, tag `v1.1.0` on `main`, title "v1.1.0 — decoy discrimination and a calibrated decision", attach `docs/report/report.pdf`.
+5. Put the new **version DOI** into the README's Citation section.
+
+Everything below is the original v1.0.0 checklist, kept for reference.
+
+---
+
 # Releasing v1.0.0
 
 A one-time checklist, from a local folder to a citable DOI.

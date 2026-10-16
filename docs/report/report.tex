@@ -11,6 +11,7 @@
 \setlength{\parskip}{0.35em}
 \setlength{\parindent}{0pt}
 \input{tables/tempering_facts.tex}
+\input{tables/v11_facts.tex}
 \makeatletter\newcommand{\tabinput}[1]{\@@input #1 }\makeatother
 
 % ---- replace before release -------------------------------------------------
@@ -21,14 +22,14 @@
 \title{\textbf{Active Wildfire-Front Estimation for a Single UAV}\\[0.3em]
 \large Satellite prior, thermal sensing and information-rate planning under safety constraints}
 \author{\authorname\\ \small Argus Aegis project\\ \small \url{\repourl}}
-\date{Technical report, v1.0 $\cdot$ October 2026}
+\date{Technical report, v1.1 $\cdot$ October 2026}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
 \noindent
-Early confirmation of a wildfire is a problem of \emph{active estimation}. A satellite hotspot product says roughly where a fire was some minutes ago; an onboard thermal camera says precisely, but noisily, what lies beneath the aircraft right now; and the endurance budget is fixed. We study a single UAV that fuses both sources in a per-cell Bayesian occupancy filter, propagates the belief through its own fire-spread model, and plans with a greedy information-rate objective. A geofence and a return-to-base monitor may override any move. In 100-seed Monte Carlo simulation, the planner is compared with a full-map lawnmower and with a lawnmower restricted to the satellite hotspot box. Relative to the stronger baseline, it cuts the median time to first confirmation by 45\,\% (1.8 vs.\ 3.3\,min) and halves the median perimeter error (18 vs.\ 35\,m on a 25\,m grid). There are no safety violations in 900 missions. We also report two failure modes. The first is an idealised calm-air spread model; the planner still leads under it, but its prediction step alone then recovers only about a third of the burnt area. The second is misspecification of the satellite prior, where the greedy planner fails catastrophically more often than a prior-blind sweep. A one-parameter tempering of the prior removes most of these failures, which marks prior robustness as the open problem.
+Early confirmation of a wildfire is a problem of \emph{active estimation}. A satellite hotspot product says roughly where a fire was some minutes ago; an onboard thermal camera says precisely, but noisily, what lies beneath the aircraft right now; and the endurance budget is fixed. We study a single UAV that fuses both sources in a per-cell Bayesian occupancy filter, propagates the belief through its own fire-spread model, and plans with a greedy information-rate objective. A geofence and a return-to-base monitor may override any move. In 100-seed Monte Carlo simulation, the planner is compared with a full-map lawnmower and with a lawnmower restricted to the satellite hotspot box. Relative to the stronger baseline, it cuts the median time to first confirmation by 45\,\% (1.8 vs.\ 3.3\,min) and halves the median perimeter error (18 vs.\ 35\,m on a 25\,m grid). There are no safety violations in 900 missions. We also report two failure modes. The first is an idealised calm-air spread model; the planner still leads under it, but its prediction step alone then recovers only about a third of the burnt area. The second is misspecification of the satellite prior, where the greedy planner fails catastrophically more often than a prior-blind sweep. A one-parameter tempering of the prior removes most of these failures, which marks prior robustness as the open problem. Version~1.1 (Section~\ref{sec:v11}) addresses a third failure: persistent non-fire heat sources, which the occupancy filter confirms as fire on every decoy cue. A sequential test between a spreading-fire model and a static-world model turns growth into evidence; thresholds chosen on one seed set and reported on another give 1.2\,\% false alerts on decoy cues (95\,\% upper bound 2.1\,\%), 0.2\,\% dismissed fires and an unchanged median alert time of 2.2\,min, at the cost of 1.5\,min more to dismiss a decoy.
 \end{abstract}
 
 \section{Problem}
@@ -174,18 +175,64 @@ Condition & Background prior & F1 (mean) & Runs with F1 $<0.7$ & 1st confirm.\ (
 
 The tempering works, but it is a single hand-tuned scalar. It encodes ``trust the satellite less'' without saying how much less, or how that should depend on the overpass age and geolocation quality. A principled treatment would plan against a set of plausible priors rather than a point estimate, and would quantify the value of exploring outside the prior.
 
+\section{Decoys and a calibrated decision (v1.1)}\label{sec:v11}
+\paragraph{The failure.} The sensor model above treats false alarms as independent per look. A persistent non-fire heat source, such as a sunlit rock or a contained burn, answers ``hot'' on every pass, and under that model repeated hot answers are exactly the evidence that confirms a fire. With three static decoys outside the satellite cue, at least one decoy cell is confirmed as fire in 50 of 100 nominal missions. When the cue itself is a decoy, the v1.0 filter confirms it in every mission (Table~\ref{tab:ladder}). Persistence is the decoy's signature, not the fire's; what distinguishes a fire is that it spreads.
+
+\paragraph{Model and test.} Each cell takes one of four classes: empty, fire, \emph{warm} decoy (responds less often than fire) and \emph{hot} decoy (responds exactly like fire at any instant). Two categorical filters run in parallel. $H_1$ (a spreading fire exists) propagates fire mass with the gated prediction~\eqref{eq:predict}; $H_0$ (nothing spreads) is a static world that explains the satellite cue with decoys. Before each update, each filter gives the predictive likelihood of the incoming footprint, and the posterior log-odds
+\[
+\Lambda_t=\log\tfrac{\pi}{1-\pi}+\textstyle\sum_{s\le t}\big[\log p(z_s\mid H_1,\text{past})-\log p(z_s\mid H_0,\text{past})\big]
+\]
+is a Bayesian sequential probability ratio statistic \citep{wald1945}. The mission ends in ALERT at the first $t$ with $\Lambda_t\ge a$, in CLEAR at the first $t$ with $\Lambda_t\le b$, or UNDECIDED at endurance. $H_1$ is penalised every time its predicted spread fails to appear, so growth becomes evidence without a hand-written ``is it growing?'' rule. A stopping rule, the \emph{CLEAR gate}, forbids CLEAR until every flagged satellite pixel has been seen. Three planners share the test: info-rate search on $P(\text{any heat})$ (M1); an active-hypothesis-testing rule that maximises the expected drift of $\Lambda$ \citep{chernoff1959, naghshvar2013} (M2); and M2 plus a close-look action, a two-tick hover with a radiometric reading that separates warm decoys from fire but, deliberately, not hot decoys (M3).
+
+\paragraph{Protocol.} Three scenario families share the v1.0 world: A, fire plus decoys; B, decoys only, conditioned on the satellite flagging one (the false-alert family); C, fire only (the v1.0 regression). Every free choice after the first milestone was screened on seeds 5000 and above, and each milestone's expectations were committed before it ran. For the thresholds, every mission flies to endurance without deciding and logs $\Lambda_t$; because the pre-decision policy is independent of $(a,b)$, the decision of every pair is a first-passage time of one run. The operating point was chosen on selection seeds (B 0--999, A and C 0--499) as the pair with the fewest dismissed fires among those with an upper 95\,\% false-alert bound $\le 2\,\%$ and $\le 5\,\%$ undecided missions, and reported on held-out seeds (B 1000--1999, A and C 500--999). Re-flown on-line at the chosen pair, the held-out decisions differ from the first-passage decisions in \opmismatch{} of 2000 missions.
+
+\begin{table}[h]
+\centering\small
+\caption{The ablation ladder at the a-priori thresholds $a=-b=\log 99$, selection seeds (B: 1000, A and C: 500 each). Times are medians in minutes.}
+\label{tab:ladder}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+Method & False alerts (B) & Time to CLEAR (B) & Fire CLEARed (A) & Alert on decoy (A) & Time to alert (C) & Map F1 (C)\\
+\midrule
+\tabinput{tables/v11_ladder.tex}
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\paragraph{Results.} The two-model test removes almost all decoy alerts on its own (Table~\ref{tab:ladder}, M0 to M1), but begins to dismiss real fires: in 9 of the 14 misses of the ungated test, the drone resolved a decoy inside the cue and cleared without ever looking at the fire. The CLEAR gate fixes 11 of the 14 and breaks none (exact McNemar $p=0.001$), at the cost of a later CLEAR. The active-testing planner (M2) is indistinguishable from heat search: the two models disagree by at least 2 nats almost nowhere heat search would not already look. The close look (M3) shortens the CLEAR when the cue holds only warm decoys and lengthens it when it holds hot ones, as pre-registered: a contained burn and a young fire differ only in growth, and no reading shortens the wait for growth. The oracle, which knows every decoy, bounds the cost of decoy ambiguity at about 1.8\,min of CLEAR time.
+
+Table~\ref{tab:op} gives M3 on held-out seeds at the a-priori thresholds and at the chosen pair $a=\opa$, $b=\opb$. False alerts fall by a third with no change in alert time; dismissing a decoy takes 1.5\,min longer. The 2\,\% target is met in point estimate but not certified: the upper bound is 2.1\,\%, and about 2000 held-out decoy missions would be needed to certify it at this rate.
+
+\begin{table}[h]
+\centering\small
+\caption{M3 on held-out seeds, 1000 missions per row group, re-flown on-line. Rates with Clopper--Pearson 95\,\% intervals.}
+\label{tab:op}
+\begin{tabular}{lcc}
+\toprule
+& $a=-b=\log 99$ (a priori) & $a=\opa$, $b=\opb$ (chosen)\\
+\midrule
+\tabinput{tables/v11_op.tex}
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Calibration.} If the within-model independence assumptions held, the probability of ever reaching $\Lambda\ge a$ on a decoy mission would be at most $e^{-a}$. Measured, it is 1.6--2.3\,\% at $a=\log 99$ (nominal 1\,\%) and 0.2--0.4\,\% at $a=8$ (nominal 0.03\,\%); from $a=10$ on, no decoy mission reached the threshold. We had predicted overconfidence by orders of magnitude; the prediction was refuted. A logistic (Platt) fit of the true hypothesis on $\Lambda_t$ gives a slope of 1.39 at 1\,min, 0.58 at 3\,min and 0.22 at 5\,min for M3: the statistic starts underconfident while the prior dominates and becomes overconfident as evidence accumulates. The overconfidence that matters sits on the CLEAR side. At 3\,min, 10\,\% of missions with $\Lambda_t\le-\log 99$ had a fire, against a claimed 0.3\,\%. The CLEAR gate is what keeps this from becoming missed fires, and it is why the selection rule chose $b=\opb$ rather than $-\log 99$.
+
+\paragraph{What thresholds cannot fix.} Among pairs that decide, dismissed fires floor at two per 1000 at every false-alert level. In all four such misses (two per seed set), $\Lambda$ never exceeded 0.7 before the CLEAR; in the sweep, where the drone keeps flying, it passed 100 nats 4--11\,min later. These are coverage misses: the fire lay outside the flagged pixels and became visible only after the cue was dismissed. A CLEAR therefore means ``nothing in the flagged pixels spreads'', not ``no fire''.
+
 \section{Limitations and next steps}
 \begin{itemize}\setlength{\itemsep}{0pt}
 \item The world is a 2-D grid: there are no vehicle dynamics, no wind on the aircraft, no terrain, and no smoke occlusion. The fire model is a toy CA, neither fitted to data nor Rothermel-based \citep{rothermel1972}.
-\item Sensor noise is independent per cell, whereas real thermal false alarms (glint, hot rock) are spatially correlated, and the filter would become overconfident under such noise.
+\item Sensor noise is independent per cell within each class. Version 1.1 models persistent decoys, but its class-conditional sensor rates and decoy mix are illustrative assumptions, not measurements; one fire per scenario and static decoys only.
 \item The planner is greedy over one step. Non-myopic planning, e.g.\ over a receding horizon or with learned policies as in \citet{julian2019}, and multi-UAV coordination are open.
 \item The safety monitor is a grid invariant. Continuous-time reachability or a control-barrier formulation is needed before any flight test.
 \end{itemize}
-Next steps, in order: (i) prior-robust planning that adapts the exploration weight to the overpass age and geolocation error; (ii) a filter with an explicit front state (level set or particle) in place of the gated mean-field prediction; (iii) a ROS\,2/PX4 software-in-the-loop port, followed by tests over enclosed private land.
+Next steps, in order: (i) a non-myopic planner that also addresses the coverage misses of Section~\ref{sec:v11}, e.g.\ a short search beyond the flagged pixels after a CLEAR; (ii) a reachability-verified return-to-base monitor under wind disturbance; (iii) replacing the illustrative satellite and decoy assumptions with statistics from real active-fire archives; (iv) prior-robust planning and an explicit front state; (v) a ROS\,2/PX4 software-in-the-loop port.
 
 \small
 \bibliographystyle{plainnat}
-\begin{thebibliography}{9}
+\begin{thebibliography}{12}
 \bibitem[Alexandridis et~al.(2008)]{alexandridis2008}
 A.~Alexandridis, D.~Vakalis, C.~I.~Siettos, G.~V.~Bafas.
 \newblock A cellular automata model for forest fire spread prediction: the case of the wildfire that swept through Spetses Island in 1990.
@@ -194,6 +241,10 @@ A.~Alexandridis, D.~Vakalis, C.~I.~Siettos, G.~V.~Bafas.
 F.~Bourgault, A.~A.~Makarenko, S.~B.~Williams, B.~Grocholsky, H.~F.~Durrant-Whyte.
 \newblock Information based adaptive robotic exploration.
 \newblock In \emph{Proc.\ IEEE/RSJ IROS}, 2002.
+\bibitem[Chernoff(1959)]{chernoff1959}
+H.~Chernoff.
+\newblock Sequential design of experiments.
+\newblock \emph{Annals of Mathematical Statistics}, 30(3):755--770, 1959.
 \bibitem[Hollinger and Sukhatme(2014)]{hollinger2014}
 G.~A.~Hollinger, G.~S.~Sukhatme.
 \newblock Sampling-based robotic information gathering algorithms.
@@ -202,6 +253,10 @@ G.~A.~Hollinger, G.~S.~Sukhatme.
 K.~D.~Julian, M.~J.~Kochenderfer.
 \newblock Distributed wildfire surveillance with autonomous aircraft using deep reinforcement learning.
 \newblock \emph{Journal of Guidance, Control, and Dynamics}, 42(8):1768--1778, 2019.
+\bibitem[Naghshvar and Javidi(2013)]{naghshvar2013}
+M.~Naghshvar, T.~Javidi.
+\newblock Active sequential hypothesis testing.
+\newblock \emph{Annals of Statistics}, 41(6):2703--2738, 2013.
 \bibitem[Rothermel(1972)]{rothermel1972}
 R.~C.~Rothermel.
 \newblock A mathematical model for predicting fire spread in wildland fuels.
@@ -210,5 +265,9 @@ R.~C.~Rothermel.
 W.~Schroeder, P.~Oliva, L.~Giglio, I.~A.~Csiszar.
 \newblock The New VIIRS 375\,m active fire detection data product: algorithm description and initial assessment.
 \newblock \emph{Remote Sensing of Environment}, 143:85--96, 2014.
+\bibitem[Wald(1945)]{wald1945}
+A.~Wald.
+\newblock Sequential tests of statistical hypotheses.
+\newblock \emph{Annals of Mathematical Statistics}, 16(2):117--186, 1945.
 \end{thebibliography}
 \end{document}

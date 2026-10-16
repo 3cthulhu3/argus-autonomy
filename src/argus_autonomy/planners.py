@@ -124,3 +124,82 @@ class InfoRate(Planner):
         if not np.isfinite(score[best]):
             return ctx.pos
         return (int(best[0]), int(best[1]))
+
+
+# --------------------------------------------------------------------------- v1.1
+def _kl_bern(p: np.ndarray, q: np.ndarray) -> np.ndarray:
+    p, q = np.clip(p, 1e-9, 1 - 1e-9), np.clip(q, 1e-9, 1 - 1e-9)
+    return p * np.log(p / q) + (1 - p) * np.log((1 - p) / (1 - q))
+
+
+def _kl_cat(p: np.ndarray, q: np.ndarray) -> np.ndarray:
+    p, q = np.clip(p, 1e-9, 1.0), np.clip(q, 1e-9, 1.0)
+    return np.sum(p * np.log(p / q), axis=0)
+
+
+def _window_sum(a: np.ndarray, radius: int) -> np.ndarray:
+    k = 2 * radius + 1
+    return uniform_filter(a, size=k, mode="constant") * k * k
+
+
+class Chernoff:
+    """Active hypothesis testing: maximise the expected drift of the log-odds per tick.
+
+    Given H, cells are independent, so the expected log-likelihood-ratio
+    increment of a look is additive over its footprint:
+
+        D(c) = P1 sum_i KL(p_i^1 || p_i^0) + P0 sum_i KL(p_i^0 || p_i^1)
+
+    with p_i^k the predictive distribution of cell i's reading under H_k
+    (Chernoff 1959; Naghshvar & Javidi 2013).  A wide look costs its travel
+    time; a close look costs travel plus hover time.  When no action is
+    expected to move the statistic by at least ``min_drift`` nats, the
+    hypotheses do not yet disagree anywhere the drone can reach and the
+    planner falls back to information-rate search for heat.  min_drift = 2
+    was chosen on seeds disjoint from the benchmark
+    (``experiments/screen_min_drift.py``).
+    """
+
+    name = "chernoff"
+
+    def __init__(self, sensor: SensorConfig, close_lik: np.ndarray | None = None,
+                 close_radius: int = 1, t_close: int = 2, tau: float = 1.0, min_drift: float = 2.0):
+        self.sensor = sensor
+        self.close_lik = None if close_lik is None else np.asarray(close_lik, float)
+        self.close_radius, self.t_close = close_radius, t_close
+        self.tau, self.min_drift = tau, min_drift
+        self.fallback = InfoRate(sensor, tau)
+        self.last_mode = "wide"
+
+    def drift_maps(self, test) -> tuple[np.ndarray, np.ndarray | None]:
+        p1h = test.p_h1
+        p1, p0 = test.h1.p_hit(), test.h0.p_hit()
+        wide = _window_sum(p1h * _kl_bern(p1, p0) + (1 - p1h) * _kl_bern(p0, p1), self.sensor.radius)
+        close = None
+        if self.close_lik is not None:
+            q1 = np.tensordot(self.close_lik.T, test.h1.probs, axes=1)
+            q0 = np.tensordot(self.close_lik.T, test.h0.probs, axes=1)
+            close = _window_sum(p1h * _kl_cat(q1, q0) + (1 - p1h) * _kl_cat(q0, q1), self.close_radius)
+        return wide, close
+
+    def plan(self, ctx: PlanContext, test, feasible_close: np.ndarray | None = None
+             ) -> tuple[tuple[int, int], str]:
+        wide, close = self.drift_maps(test)
+        travel = np.ceil(ctx.dist / ctx.speed)
+        best_val, best, mode = -np.inf, ctx.pos, "wide"
+        cands = [("wide", wide, ctx.feasible, 0)]
+        if close is not None and feasible_close is not None:
+            cands.append(("close", close, feasible_close, self.t_close))
+        for m, d, feas, extra in cands:
+            ok = feas & (d >= self.min_drift)
+            if not ok.any():
+                continue
+            score = np.where(ok, d / (travel + self.tau + extra), -np.inf)
+            i = np.unravel_index(int(np.argmax(score)), score.shape)
+            if score[i] > best_val:
+                best_val, best, mode = float(score[i]), (int(i[0]), int(i[1])), m
+        if not np.isfinite(best_val):
+            self.last_mode = "search"
+            return self.fallback.plan(ctx), "wide"
+        self.last_mode = mode
+        return best, mode

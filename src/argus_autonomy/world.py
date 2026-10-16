@@ -10,7 +10,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
-from .config import FireConfig
+from .config import EMPTY, FIRE, HOT, WARM, FireConfig
 
 # 8-neighbourhood offsets (dr, dc)
 NEIGHBOURS = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
@@ -93,3 +93,43 @@ class Fire:
     def advance(self, k: int) -> None:
         for _ in range(k):
             self.step()
+
+
+# --------------------------------------------------------------------------- v1.1
+def class_map(affected: np.ndarray, decoy_class: np.ndarray) -> np.ndarray:
+    """Per-cell latent class: fire wins over a decoy it has burnt into.
+
+    `decoy_class` holds EMPTY / WARM / HOT; the result also uses FIRE.
+    """
+    out = decoy_class.astype(np.int8).copy()
+    out[affected] = FIRE
+    return out
+
+
+def place_decoys(n: int, allowed: np.ndarray, keep_out: np.ndarray, n_warm: int, n_hot: int,
+                 max_side: int, rng: np.random.Generator) -> list[tuple[int, int, int, int, int]]:
+    """Rectangles (r, c, h, w, cls) in allowed airspace, clear of `keep_out`,
+    not touching each other.  `keep_out` is a boolean mask (already dilated
+    by the caller to the required separation)."""
+    taken = keep_out.copy()
+    out = []
+    for cls in [WARM] * n_warm + [HOT] * n_hot:
+        for _ in range(10_000):
+            h, w = (int(x) for x in rng.integers(1, max_side + 1, size=2))
+            r = int(rng.integers(2, n - 2 - h))
+            c = int(rng.integers(2, n - 2 - w))
+            if not allowed[r:r + h, c:c + w].all() or taken[r - 1:r + h + 1, c - 1:c + w + 1].any():
+                continue
+            taken[r:r + h, c:c + w] = True
+            out.append((r, c, h, w, cls))
+            break
+        else:  # pragma: no cover - only on absurdly crowded maps
+            raise RuntimeError("could not place decoy")
+    return out
+
+
+def rasterise_decoys(n: int, rects) -> np.ndarray:
+    m = np.full((n, n), EMPTY, dtype=np.int8)
+    for r, c, h, w, cls in rects:
+        m[r:r + h, c:c + w] = cls
+    return m

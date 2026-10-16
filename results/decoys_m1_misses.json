@@ -1,0 +1,146 @@
+[
+ {
+  "family": "A",
+  "seed": 1,
+  "t_clear_min": 2.1666666666666665,
+  "fire_hits_before_clear": 61,
+  "decoy_hits_before_clear": 0,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 52,
+  "t_clear_min": 1.5,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 12,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 100,
+  "t_clear_min": 2.333333333333333,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 13,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 114,
+  "t_clear_min": 2.333333333333333,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 1,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 148,
+  "t_clear_min": 2.333333333333333,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 22,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 175,
+  "t_clear_min": 3.1666666666666665,
+  "fire_hits_before_clear": 47,
+  "decoy_hits_before_clear": 5,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 188,
+  "t_clear_min": 1.6666666666666665,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 3,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 214,
+  "t_clear_min": 1.8333333333333333,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 17,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 262,
+  "t_clear_min": 1.8333333333333333,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 5,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 267,
+  "t_clear_min": 5.166666666666666,
+  "fire_hits_before_clear": 228,
+  "decoy_hits_before_clear": 13,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 356,
+  "t_clear_min": 3.333333333333333,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 23,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 414,
+  "t_clear_min": 5.166666666666666,
+  "fire_hits_before_clear": 0,
+  "decoy_hits_before_clear": 17,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 418,
+  "t_clear_min": 4.333333333333333,
+  "fire_hits_before_clear": 46,
+  "decoy_hits_before_clear": 17,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": true
+ },
+ {
+  "family": "A",
+  "seed": 419,
+  "t_clear_min": 3.833333333333333,
+  "fire_hits_before_clear": 29,
+  "decoy_hits_before_clear": 0,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": false
+ },
+ {
+  "family": "C",
+  "seed": 1,
+  "t_clear_min": 2.1666666666666665,
+  "fire_hits_before_clear": 61,
+  "decoy_hits_before_clear": 0,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": false
+ },
+ {
+  "family": "C",
+  "seed": 419,
+  "t_clear_min": 3.833333333333333,
+  "fire_hits_before_clear": 29,
+  "decoy_hits_before_clear": 0,
+  "cue_covers_fire": true,
+  "cue_covers_decoy": false
+ }
+]

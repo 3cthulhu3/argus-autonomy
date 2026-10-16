@@ -61,6 +61,42 @@ def main():
     (OUT / "tempering_facts.tex").write_text(
         f"\\newcommand{{\\nodetect}}{{{t['degraded_prior_no_detection']}}}\n"
         f"\\newcommand{{\\outsideprior}}{{{t['degraded_prior_fire_entirely_outside_prior']}}}\n")
+    # ---- v1.1: decoys ----------------------------------------------------------
+    def pc(r):
+        return f"{100 * r['p']:.1f}\\,\\%"
+
+    def md(m):
+        return "--" if not m or m["median"] is None else f"{m['median']:.2f}"
+
+    m2 = json.loads((ROOT / "results" / "decoys_m2.json").read_text())
+    names = {"M0 (v1.0)": "M0 (v1.0)", "M1, no gate (milestone i)": "M1, no gate", "M1": "M1",
+             "M2": "M2", "M3": "M3", "Oracle": "Oracle"}
+    rows = []
+    for key, label in names.items():
+        a, b, c = m2[key]["A"], m2[key]["B"], m2[key]["C"]
+        rows.append(f"{label} & {pc(b['P_FA'])} & {md(b['t_clear_min'])} & {pc(a['P_CLEAR_on_fire'])} & "
+                    f"{pc(a['P_MIS'])} & {md(c['t_correct_alert_min'])} & {c['f1_mean']:.3f} \\\\")
+    (OUT / "v11_ladder.tex").write_text("\n".join(rows) + "\n")
+
+    ap = json.loads((ROOT / "results" / "sweep_heldout.json").read_text())["results"]["M3"]["apriori"]
+    op = json.loads((ROOT / "results" / "operating_point.json").read_text())
+
+    def ci(r):
+        return f"{pc(r)} [{100 * r['ci95'][0]:.1f}, {100 * r['ci95'][1]:.1f}]"
+
+    rows = [
+        f"False alerts on a decoy cue (B) & {ci(ap['P_FA'])} & {ci(op['P_FA'])} \\\\",
+        f"Real fire CLEARed (A $\\cup$ C) & {ci(ap['fire_cleared'])} & {ci(op['fire_cleared'])} \\\\",
+        f"Alert in the wrong place (A $\\cup$ C) & {ci(ap['fire_alert_wrong_place'])} & {ci(op['fire_alert_wrong_place'])} \\\\",
+        f"Undecided (B) & {ap['P_U_B']['k']} & {op['P_U_B']['k']} \\\\",
+        f"Time to correct alert, median (min) & {ap['t_alert_median']:.2f} & {op['t_alert']['median']:.2f} \\\\",
+        f"Time to CLEAR a decoy cue, median (min) & {ap['t_clear_median']:.2f} & {op['t_clear']['median']:.2f} \\\\",
+        f"Geofence violations / returns to base & -- & {op['geofence_violations']} / {op['returned_to_base']} of {op['n']} \\\\",
+    ]
+    (OUT / "v11_op.tex").write_text("\n".join(rows) + "\n")
+    (OUT / "v11_facts.tex").write_text(
+        f"\\newcommand{{\\opa}}{{{op['a']:g}}}\n\\newcommand{{\\opb}}{{{op['b']:g}}}\n"
+        f"\\newcommand{{\\opmismatch}}{{{op['first_passage_mismatches']}}}\n")
     print("wrote", *sorted(p.name for p in OUT.iterdir()))
 
 

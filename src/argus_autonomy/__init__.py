@@ -3,6 +3,13 @@
 from .config import NOMINAL, WIND_MISMATCH, MissionConfig
 from .mission import PLANNERS, MissionResult, make_scenario, run_mission
 
-__all__ = ["MissionConfig", "NOMINAL", "WIND_MISMATCH", "PLANNERS",
-           "run_mission", "make_scenario", "MissionResult"]
-__version__ = "1.0.0"
+__all__ = [
+           "NOMINAL",
+           "PLANNERS",
+           "WIND_MISMATCH",
+           "MissionConfig",
+           "MissionResult",
+           "make_scenario",
+           "run_mission",
+]
+__version__ = "1.1.0"
