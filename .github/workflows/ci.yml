@@ -32,3 +32,5 @@ jobs:
           cd experiments && python analyse_sweep.py --split select --quick > /dev/null
       - name: FIRMS 2024 real-data analysis
         run: cd experiments && python firms_contact.py > /dev/null
+      - name: quick v1.2 sweep on screening seeds
+        run: cd experiments && python v12.py sweep --quick --workers 2 && python v12.py select --quick > /dev/null
