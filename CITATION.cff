@@ -3,7 +3,7 @@ message: "If you use this software, please cite it as below."
 title: "argus-autonomy: active wildfire-front estimation for a single UAV"
 type: software
 version: 1.1.0
-date-released: 2026-10-14
+date-released: 2026-10-16
 license: Apache-2.0
 authors:
   - alias: "d3st"
