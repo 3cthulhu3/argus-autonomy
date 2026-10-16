@@ -78,6 +78,15 @@ What it costs and what it does not fix, measured rather than hidden:
 
 Every free choice from milestone (ii) on was screened on seeds the benchmark never sees, and each milestone's protocol was committed before it ran. Design, decisions, nine pre-registered expectations (four confirmed, five refuted or not supported) and the full account: [`docs/design/v1.1-decoy-discrimination.md`](docs/design/v1.1-decoy-discrimination.md).
 
+## First contact with real data
+
+Which of the simulation's assumptions can the public satellite record check? A pre-registered analysis of every 2024 VIIRS active-fire detection in Germany, Greece and Portugal (31 000 detections, 12 000 dispatch-sized cues) answers in part ([`docs/design/firms-2024-contact.md`](docs/design/firms-2024-contact.md)):
+
+- **Most decoy cues are already known.** In Germany 71 % of cues are labelled industrial or other static sources, which a dispatcher masks before any drone flies. The drone's problem is the residual.
+- **The residual is not empty.** At least 15 % (Germany), 6 % (Greece) and 1 % (Portugal) of the remaining cues sit on sites seen on 10 or more days, mostly at night, like unflagged industrial sources. Contained burns are invisible to this data, so these are lower bounds.
+- **Real cues are 2–6.5 times larger than simulated ones.** Because the drone may not dismiss a cue before it has seen all of it, the simulated time to CLEAR is optimistic for real cues. A robustness re-run with real pixel sizes is the next step.
+- **No pre-registered expectation held in all three countries**, and one failed because the protocol was wrong (static sources are visible almost only at night). Both are reported.
+
 ## Method
 
 | component | what it does | file |
