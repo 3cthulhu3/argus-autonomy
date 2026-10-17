@@ -370,3 +370,17 @@ def test_dwell_holds_at_every_clear():
             if r.ring_seen_at_decision < 1.0:
                 assert all(x <= -4.595 for x in r.llr[tc - 12: tc + 1])
     assert n_clear > 0
+
+
+def test_recommended_configuration_matches_the_adopted_rule():
+    """RECOMMENDED is exactly what v1.2b selected and adopted (results/v12b_select.json)."""
+    import json
+    from pathlib import Path
+
+    from argus_autonomy.config import RECOMMENDED
+
+    ops = json.loads((Path(__file__).resolve().parents[1] / "results" / "v12b_select.json").read_text())
+    assert ops["chosen"] == "D5"
+    for name, geom in (("NOMINAL", "G200"), ("VIIRS_PIXEL", "G400")):
+        op, cfg = ops["operating_points"][f"D5|{geom}"], RECOMMENDED[name]
+        assert (cfg.alert, cfg.clear, cfg.dwell_ticks, cfg.steer_clear) == (op["a"], op["b"], 30, -4.595)

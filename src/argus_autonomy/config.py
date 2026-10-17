@@ -156,3 +156,17 @@ FAMILIES = ("A", "B", "C")  # A: fire + decoys, B: decoys only (cue present), C:
 
 # Truth has wind, estimator assumes calm air: the idealised-model failure case.
 WIND_MISMATCH = MissionConfig(model=ModelConfig(wind_known=False))
+
+# Satellite geometry with VIIRS-sized pixels (400 m, same absolute detection area as NOMINAL).
+VIIRS_PIXEL = replace(NOMINAL, prior=replace(NOMINAL.prior, coarse_factor=16, detect_fraction=3.2 / 256))
+
+# Recommended decision configuration, adopted in v1.2b under a pre-registered criterion
+# (docs/design/v1.2-coverage-misses.md, §8-9): method M3, CLEAR gate on the flagged
+# pixels, steering at -log 99, and a 5-minute ring search (D5) before any CLEAR.
+# Thresholds are per satellite geometry, because they do not transfer between them.
+# SPRTConfig's own defaults are left at their v1.1 values so that every published
+# v1.0/v1.1 result still reproduces from the scripts that created it.
+RECOMMENDED = {
+    "NOMINAL": SPRTConfig(steer_clear=-4.595, dwell_ticks=30, alert=6.0, clear=-15.0),
+    "VIIRS_PIXEL": SPRTConfig(steer_clear=-4.595, dwell_ticks=30, alert=2.0, clear=-30.0),
+}
