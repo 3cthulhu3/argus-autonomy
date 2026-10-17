@@ -87,15 +87,20 @@ Which of the simulation's assumptions can the public satellite record check? A p
 - **Real cues are 2–6.5 times larger than simulated ones, and this matters, but not as predicted.** Re-run with 400 m satellite pixels ([`docs/design/robustness-viirs-pixel.md`](docs/design/robustness-viirs-pixel.md)): false alerts on decoy cues fall to 0 of 1000 and dismissal gets faster, but real fires dismissed rise from 2 to 6 of 1000 at the operating point (from 2 to 13 at the a-priori thresholds). A larger cue yields cold evidence faster, so the drone dismisses it before searching the ring where the fire lies. The operating point does not transfer across satellite geometries; coverage misses are the open problem for v1.2.
 - **No pre-registered expectation held in all three countries.** One failed because the protocol was wrong: static sources are visible almost only at night. One inference drawn from the data, that dismissal would get slower, was refuted by the re-run. All of it is reported.
 
-## v1.2 attempt: coverage misses (not adopted)
+## v1.2: coverage misses, adopted on the second attempt
 
-Pre-registered test of ring-aware CLEAR rules against the coverage misses above, across 200 m and 400 m satellite pixels, with fresh held-out seeds ([`docs/design/v1.2-coverage-misses.md`](docs/design/v1.2-coverage-misses.md)):
+The remaining error after v1.1 was the *coverage miss*: a fire just outside the flagged satellite pixel, dismissed before the drone had looked there. Ring-aware CLEAR rules were tested in two pre-registered rounds across 200 m and 400 m satellite pixels, each time on held-out seeds never flown before ([`docs/design/v1.2-coverage-misses.md`](docs/design/v1.2-coverage-misses.md)).
 
-- The best rule, which requires 75 % of the ring to be seen, **caught every coverage miss of the v1.1 rule** on held-out seeds.
-- It **missed two other fires** that v1.1 caught. Net result: 4 missed fires against 6.
-- It cost 5.3 min more per decoy at 400 m, and it left 5.7 % of decoy missions undecided, above the 5 % bound.
-- **Two of four expectations were refuted.** The cause is a flaw in the selection procedure: when many thresholds show zero misses, choosing the fastest picks the least vetted one.
-- **The rule is not adopted.** The selection rule and the estimator are fixed first.
+- **First round: not adopted.** The chosen rule caught every coverage miss but missed two other fires, and broke the bound on undecided missions. The cause was the selection procedure. When 144 thresholds tie at zero misses, a speed tie-break picks the least vetted one.
+- **Second round: adopted.** The selection rule was corrected to take the most conservative threshold among tied pairs and to keep a margin on undecided missions. It was then pre-registered with an adoption criterion and run on fresh seeds. The chosen rule (D5: search the ring for 5 minutes before any CLEAR) met all four expectations and the criterion:
+
+| fresh held-out seeds, 1000 per row | v1.1 rule, 400 m | **D5, 400 m** | v1.1 rule, 200 m | D5, 200 m |
+|---|---|---|---|---|
+| real fires dismissed | 4 | **0** | 1 | 1 |
+| false alerts on decoy cues | 0.6 % | 0.7 % | 1.1 % | 1.1 % |
+| median time to dismiss a decoy | 8.2 min | 10.7 min | 7.3 min | 9.5 min |
+
+Both rules run at thresholds re-selected under the corrected procedure, so the v1.1 columns are the v1.1 *rule*, not the v1.1 release's operating point. The evidence for fewer missed fires is weak (5 against 1 over both geometries; p = 0.12 at 400 m). The gain appears only with realistic, large pixels, and it costs about 2.5 minutes per false alarm. `RECOMMENDED` in [`config.py`](src/argus_autonomy/config.py) holds the adopted configuration. Defaults are unchanged so that published results reproduce.
 
 ## Method
 
