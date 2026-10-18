@@ -102,6 +102,21 @@ The remaining error after v1.1 was the *coverage miss*: a fire just outside the 
 
 Both rules run at thresholds re-selected under the corrected procedure, so the v1.1 columns are the v1.1 *rule*, not the v1.1 release's operating point. The evidence for fewer missed fires is weak (5 against 1 over both geometries; p = 0.12 at 400 m). The gain appears only with realistic, large pixels, and it costs about 2.5 minutes per false alarm. `RECOMMENDED` in [`config.py`](src/argus_autonomy/config.py) holds the adopted configuration. Defaults are unchanged so that published results reproduce.
 
+## v1.3: an object-level fire hypothesis (measured, not adopted)
+
+D5 compensates for coverage misses by searching longer. v1.3 removes their cause. The fire hypothesis becomes "the world of H0 plus one fire at an unknown location", a mixture over about 40–170 location hypotheses. Cold looks at the cue then shift belief toward the ring instead of against fire as a whole, and a unit test fixes this bound exactly ([`docs/design/v1.3-object-level-fire.md`](docs/design/v1.3-object-level-fire.md)). The test was pre-registered against D5, on fresh seeds:
+
+| fresh held-out seeds, 1000 per cell | D5, 200 m | **object model, 200 m** | D5, 400 m | object model, 400 m |
+|---|---|---|---|---|
+| real fires dismissed | 1 | 1 | 1 | 1 |
+| false alerts on decoy cues | 1.4 % | 0.6 % | 0.6 % | 0.2 % |
+| median time to correct alert | 2.17 min | 1.67 min | 2.17 min | 1.83 min |
+| median time to dismiss a decoy | 9.50 min | **7.17 min** | 10.67 min | **14.50 min** |
+
+All four expectations held, but the pre-registered adoption criterion did not: at VIIRS-sized pixels the object model is 3.8 min slower to dismiss a decoy, because it will not dismiss until the ring is actually searched. D5 therefore stays `RECOMMENDED`.
+
+At 200 m pixels the object model is better on every measured dimension. Using it for fine satellite products is a hypothesis for a new pre-registered test, not a result. The one fire both methods miss is 3 cells, far smaller than the model's assumed fire. That points to the next step: uncertainty over fire size as well as location.
+
 ## Method
 
 | component | what it does | file |

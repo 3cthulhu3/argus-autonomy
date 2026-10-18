@@ -34,3 +34,5 @@ jobs:
         run: cd experiments && python firms_contact.py > /dev/null
       - name: quick v1.2 sweep on screening seeds
         run: cd experiments && python v12.py sweep --quick --workers 2 && python v12.py select --quick > /dev/null
+      - name: object-level H1 smoke run
+        run: python -c "from argus_autonomy import NOMINAL; from argus_autonomy.config import SPRTConfig; from argus_autonomy.decision import run_decision_mission as r; print(r(NOMINAL,'M3','A',5000,sprt=SPRTConfig(steer_clear=-4.595,h1_model='object')).decision)"
