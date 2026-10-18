@@ -27,6 +27,7 @@ from .config import (
     MissionConfig,
     SPRTConfig,
 )
+from .mixture import MixtureFilter, object_priors
 from .perception import CategoricalFilter, class_theta, spread_kernel
 
 ALERT, CLEAR, UNDECIDED = "ALERT", "CLEAR", "UNDECIDED"
@@ -86,7 +87,7 @@ def _oracle(h1, h0, sat, background, known, certainty: float = 0.999):
 
 @dataclass
 class MultiModelTest:
-    h1: CategoricalFilter
+    h1: CategoricalFilter | MixtureFilter
     h0: CategoricalFilter
     llr: float              # log P(H1 | data) / P(H0 | data)
     alert: float
@@ -98,8 +99,19 @@ class MultiModelTest:
         theta = class_theta(cfg.sensor, decoys)
         p1, p0 = hypothesis_priors(sat, cfg.prior.p_background, sprt, decoys, known_decoys)
         q = spread_kernel(cfg.model, wind_dir, cfg.fire.wind_gain)
+        if sprt.h1_model == "object":
+            if known_decoys is not None:
+                raise ValueError("the object-level H1 has no oracle variant")
+            region = sat >= cfg.prior.p_ring
+            comps, logw = object_priors(p0, sat, cfg.prior.p_background, region,
+                                        sprt.obj_radius, sprt.obj_step, sprt.obj_p_blob)
+            h1 = MixtureFilter(comps, logw, theta, q, cfg.fire.burn_steps)
+        elif sprt.h1_model == "cell":
+            h1 = CategoricalFilter(p1, theta, q, cfg.fire.burn_steps)
+        else:
+            raise ValueError(f"unknown h1_model {sprt.h1_model!r}")
         return cls(
-            h1=CategoricalFilter(p1, theta, q, cfg.fire.burn_steps),
+            h1=h1,
             h0=CategoricalFilter(p0, theta, None),
             llr=float(np.log(sprt.prior_h1 / (1 - sprt.prior_h1))),
             alert=sprt.alert, clear=sprt.clear,

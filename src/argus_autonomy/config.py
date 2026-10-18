@@ -144,6 +144,14 @@ class SPRTConfig:
     #                the ring; waived once every ring cell has been seen.
     ring_cover: float = 0.0
     dwell_ticks: int = 0
+    # v1.3 fire hypothesis. "cell" (v1.1): independent fire mass on every cue cell.
+    # "object": H0 plus ONE fire blob of radius obj_radius (cells) at an unknown centre on a
+    # lattice of spacing obj_step over the cue and its ring, fire probability obj_p_blob
+    # inside the blob; prior weights follow the satellite excess (mixture.py).
+    h1_model: str = "cell"
+    obj_radius: float = 3.0
+    obj_step: int = 4
+    obj_p_blob: float = 0.6
 
     def omega_for(self, decoys: DecoyConfig) -> float:
         if self.omega is not None:
