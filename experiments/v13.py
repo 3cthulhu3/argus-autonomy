@@ -51,12 +51,46 @@ def _sweep_job(args):
             "gv": r.geofence_violations, "rtb": bool(r.returned_to_base)}
 
 
+def _salvage(path: Path) -> list[dict]:
+    """Rows readable from a (possibly truncated) gzip or plain jsonl file."""
+    rows = []
+    if not path.exists():
+        return rows
+    opener = gzip.open if path.suffix == ".gz" else open
+    try:
+        with opener(path, "rt") as fh:
+            for line in fh:
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError:
+                    break
+    except (EOFError, OSError):
+        pass
+    return rows
+
+
 def cmd_sweep(args):
+    """Resumable: every finished mission is appended and flushed to a part file, and a
+    restart (the container can be reclaimed mid-run) flies only the missing seeds.
+    Missions are deterministic per seed, so a resumed sweep equals an uninterrupted one."""
     jobs = [(g, f, s) for g in GEOMS for f, ss in SEEDS["select"].items() for s in ss]
     out = ROOT / "results" / "v13_sweep.jsonl.gz"
-    with ProcessPoolExecutor(args.workers) as ex, gzip.open(out, "wt") as fh:
-        for row in ex.map(_sweep_job, jobs, chunksize=4):
+    part = ROOT / "results" / "v13_sweep.part.jsonl"
+    done = {(r["g"], r["f"], r["s"]): r for r in _salvage(out) + _salvage(part)}
+    with open(part, "w") as fh:                      # rewrite the part file from what survived
+        for r in done.values():
+            fh.write(json.dumps(r) + "\n")
+    todo = [j for j in jobs if j not in done]
+    print(f"{len(done)} missions recovered, {len(todo)} to fly", flush=True)
+    with ProcessPoolExecutor(args.workers) as ex, open(part, "a") as fh:
+        for row in ex.map(_sweep_job, todo, chunksize=4):
+            done[(row["g"], row["f"], row["s"])] = row
             fh.write(json.dumps(row) + "\n")
+            fh.flush()
+    with gzip.open(out, "wt") as fh:
+        for j in jobs:
+            fh.write(json.dumps(done[j]) + "\n")
+    part.unlink()
     print(f"{len(jobs)} missions -> {out.relative_to(ROOT)}")
 
 
@@ -114,11 +148,20 @@ def cmd_heldout(args):
     jobs = [(v, g, f, s, ops[f"{v}|{g}"]["a"], ops[f"{v}|{g}"]["b"])
             for v in variants for g in GEOMS for f, ss in HELDOUT.items() for s in ss]
     jobs.sort(key=lambda j: j[0] != "O")          # slow jobs first, for load balance
-    with ProcessPoolExecutor(args.workers) as ex:
-        rows = list(ex.map(_online_job, jobs, chunksize=4))
+    part = ROOT / "results" / "v13_heldout.part.jsonl"
+    done = {(r["v"], r["g"], r["family"], r["seed"]): r for r in _salvage(part)}   # resumable, as the sweep
+    todo = [j for j in jobs if (j[0], j[1], j[2], j[3]) not in done]
+    print(f"{len(done)} missions recovered, {len(todo)} to fly", flush=True)
+    with ProcessPoolExecutor(args.workers) as ex, open(part, "a") as fh:
+        for r in ex.map(_online_job, todo, chunksize=4):
+            done[(r["v"], r["g"], r["family"], r["seed"])] = r
+            fh.write(json.dumps(r, default=float) + "\n")
+            fh.flush()
+    rows = [done[(j[0], j[1], j[2], j[3])] for j in jobs]
     with gzip.open(ROOT / "results" / "v13_heldout_runs.jsonl.gz", "wt") as fh:
         for r in rows:
             fh.write(json.dumps(r, default=float) + "\n")
+    part.unlink(missing_ok=True)
     rng = np.random.default_rng(0)
     res = {}
     for v in variants:
