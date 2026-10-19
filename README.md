@@ -11,6 +11,8 @@ A coarse, stale satellite hotspot gives a prior; a nadir thermal camera gives no
 
 This is the autonomy layer of the Argus Aegis wildfire-drone concept. It is a research prototype, **not flight software**: everything runs in a 2-D grid simulation.
 
+Since v2.0 the stack covers the whole chain **detect → confirm → respond**: a cue-free patrol from a dock finds the heat, the decision test below confirms it, and a response layer turns the confirmation into a responder brief, a forecast, and a measured answer to whether a drone from the dock could knock the fire down ([§ v2.0](#v20-detection-and-response-around-the-decision-test)).
+
 ## Result in one table
 
 The table shows the nominal condition, 100 Monte Carlo seeds per planner. All planners face *identical* fires on the same seed.
@@ -117,6 +119,29 @@ All four expectations held, but the pre-registered adoption criterion did not: a
 
 At 200 m pixels the object model is better on every measured dimension. Using it for fine satellite products is a hypothesis for a new pre-registered test, not a result. The one fire both methods miss is 3 cells, far smaller than the model's assumed fire. That points to the next step: uncertainty over fire size as well as location.
 
+## v2.0: detection and response around the decision test
+
+Two new layers sit on either side of the v1.2b decision test, which is reused unchanged ([`docs/design/v2.0-detect-respond.md`](docs/design/v2.0-detect-respond.md)). Ten expectations were committed before any held-out run; nine held.
+
+**Detect** ([`detection.py`](src/argus_autonomy/detection.py)). No satellite cue: the fire ignites at an unknown time and place on a risk map. One drone patrols from a dock, lands and recharges. A patrol filter with an ignition hazard makes unseen ground gradually worth revisiting. A confident hot spot is handed to the decision test; a CLEAR registers it as a static source.
+
+| median minutes from ignition to correct ALERT (200 fires per cell) | 0.64 km² | 1.44 km² | 2.56 km² |
+|---|---|---|---|
+| lawnmower patrol, 1 drone (30 min recharge) | 21.2 | 34.1 | 52.2 |
+| **information-rate patrol on the risk map, 1 drone** | **13.7** | **24.8** | **31.2** |
+| information-rate patrol, continuous coverage (two drones alternating) | **7.2** | 12.7 | 16.7 |
+
+- The risk-aware patrol beats the lawnmower on 145 of 200 paired fires.
+- On fire-free maps there was 1 false ALERT in 558 hand-offs (upper bound 1.0 %).
+- There were 0 geofence violations in 5000 patrols.
+- **A 10-minute detection target is met only with continuous coverage and about 0.64 km² per dock.** Once the drone is over the fire, confirmation takes about a minute; the rest is revisit time.
+
+**Respond** ([`response.py`](src/argus_autonomy/response.py), [`suppression.py`](src/argus_autonomy/suppression.py)).
+- *Brief and forecast.* At ALERT the estimator's belief becomes a brief: position, area, extent, heading and distance from the dock. It comes with an ensemble forecast of the affected area at +15 and +30 min. The ensemble beats the estimator's own prediction on Brier score in 332 of 396 alerts, and its envelope contains every truly affected cell, but it over-predicts the area about 2.5×.
+- *Can a drone from the dock knock it down?* A closed-form model answers this, because the 25 m grid is too coarse to simulate suppression. It combines Byram intensity and flame length, Anderson's fire shape, Penney et al.'s critical water flow and a momentum-theory multirotor. Coupled to the patrol's measured latencies for slow fires (~2 m/min), one 40 L drone contains the fire in **2 %** of cases, and two drones with continuous coverage in **8 %**. Doubling pack energy changes nothing, because payload is not the constraint: in the model, a 2 m/min fire must be alerted within about 10 min and lie within about 1 km of the dock.
+
+**Where it breaks.** Slow fires are where a payload could matter, and they are also where the test is weakest. Their growth is the test's only evidence, so confirmation takes about 12 min instead of 1, and 0.5–1.5 % of real slow fires were CLEARed. Suppression therefore remains a research item, and nothing here claims autonomous fire suppression. The measured product of the response layer is the brief and the forecast.
+
 ## Method
 
 | component | what it does | file |
@@ -134,7 +159,7 @@ The [technical report](docs/report/report.pdf) gives the equations, the experime
 
 ```bash
 pip install -e ".[dev]"          # Python ≥ 3.10; numpy, scipy (+ matplotlib, imageio for figures)
-pytest -q                        # 57 tests: Bayes update, regression invariants, geofence, RTB, first passage
+pytest -q                        # 92 tests: Bayes update, regression invariants, geofence, RTB, first passage, v2.0 layers
 
 argus-demo --planner info-rate --seed 47 --gif mission.gif
 argus-demo --planner prior-lawnmower --condition degraded-prior --seed 68
@@ -150,6 +175,9 @@ python experiments/run_decoy_benchmark_ii.py
 python experiments/run_sweep.py --split select && (cd experiments && python analyse_sweep.py --split select)
 python experiments/run_sweep.py --split heldout && (cd experiments && python analyse_sweep.py --split heldout)
 (cd experiments && python run_operating_point.py)
+
+# v2.0: detection and response (about 50 min on 2 cores)
+(cd experiments && python v20.py patrol && python v20.py forecast && python v20.py report)
 ```
 
 Every number in this README and in the report comes from the files these scripts write. Results are deterministic for a given seed.
@@ -162,6 +190,7 @@ Every number in this README and in the report comes from the files these scripts
 - **Simple safety monitor.** It is a checkable runtime invariant on a grid, not a formal reachability guarantee for continuous dynamics.
 - **One vehicle and a greedy one-step planner.** There is no multi-step lookahead and no multi-UAV coordination.
 - **One fire per scenario, static decoys.** Several simultaneous fires and moving heat sources are out of scope.
+- **Suppression is a feasibility model, not a simulation.** Its fire growth, water demand and airframe are closed-form with stated assumption ranges, and the airframe is deliberately optimistic. Airspace, BVLOS authorisation and deconfliction with manned firefighting aircraft are not modelled.
 
 ## Citation
 

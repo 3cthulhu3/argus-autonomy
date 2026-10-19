@@ -266,13 +266,15 @@ def report():
 
     # D3
     lines += ["## D3. Slow fire (~2 m/min), 64×64, 200 fires per cell", "",
-              "| duty | planner | ignition → first cue | ignition → correct ALERT | missed | real fires CLEARed |",
+              "| duty | planner | ignition → first contact (cue on the fire, or ALERT) | ignition → correct ALERT | missed | real fires CLEARed |",
               "|---|---|---|---|---|---|"]
     for rk in RECHARGE:
         for pl in ("P0", "P1"):
             rows = sel("D3", 64, rk, pl)
             ta = np.array([r["t_alert_min"] if r["t_alert_min"] is not None else np.nan for r in rows], float)
-            tc = np.array([r["t_first_cue_min"] if r["t_first_cue_min"] is not None else np.nan for r in rows], float)
+            # a fire can also be found during a hand-off on another cue: first contact = min(cue, alert)
+            tc = np.fmin(np.array([r["t_first_cue_min"] if r["t_first_cue_min"] is not None else np.nan
+                                   for r in rows], float), ta)
             lines.append(f"| {rk} | {pl} | {fmt(cmed(tc, rng)[0])} | {fmt(cmed(ta, rng)[0])} | "
                          f"{int(np.isnan(ta).sum())} | {sum(r['fire_cleared'] for r in rows)} |")
     lines.append("")
