@@ -146,26 +146,44 @@ class DecisionResult:
     # each alert level the first tick the log-odds reached it with where the alert lands
     trace: list = field(repr=False, default_factory=list)
     crossings: dict = field(repr=False, default_factory=dict)
+    # v2.0 hand-off state (not part of the summary, so v1.x result columns are unchanged)
+    final_pos: tuple | None = field(repr=False, default=None)
+    alert_rc: tuple | None = field(repr=False, default=None)     # (row, col) of the alert
+    h1_fire: np.ndarray | None = field(repr=False, default=None)  # H1 P(fire) at the decision
+
+    _HIDDEN = ("llr", "trace", "crossings", "final_pos", "alert_rc", "h1_fire")
 
     def summary(self) -> dict:
-        return {k: v for k, v in self.__dict__.items() if k not in ("llr", "trace", "crossings")}
+        return {k: v for k, v in self.__dict__.items() if k not in self._HIDDEN}
 
 
 def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int,
                          dcfg: DecoyConfig | None = None, sprt: SPRTConfig | None = None,
                          stop_on_clear: bool = True, plan_on: str = "heat",
                          min_drift: float | None = None, sweep: bool = False,
-                         alert_levels: tuple[float, ...] = ()) -> DecisionResult:
+                         alert_levels: tuple[float, ...] = (),
+                         scenario: DecoyScenario | None = None,
+                         start_pos: tuple[int, int] | None = None,
+                         start_remaining: int | None = None,
+                         t_offset: int = 0,
+                         return_on_decision: bool = False) -> DecisionResult:
     """``sweep=True`` never decides: the mission flies to endurance with the
     pre-decision policy and logs the log-odds trajectory, so the decision of any
     threshold pair is recovered afterwards as a first-passage time
     (``first_passage``). Needs ``sprt.steer_clear`` set, or the policy would depend
-    on ``sprt.clear``."""
+    on ``sprt.clear``.
+
+    v2.0 hand-off (all defaults reproduce v1.x exactly): ``scenario`` replaces the
+    generated one (the patrol layer builds the cue map itself); the drone starts at
+    ``start_pos`` with ``start_remaining`` ticks of endurance; ``t_offset`` is the
+    global tick of the first tick here, so fire steps stay on the global clock;
+    ``return_on_decision`` hands control back the tick after ALERT or CLEAR instead
+    of flying home."""
     dcfg = dcfg or DecoyConfig()
     sprt = sprt or SPRTConfig()
     if method not in METHODS:
         raise ValueError(f"unknown method {method!r}; choose from {METHODS}")
-    sc = make_decoy_scenario(cfg, dcfg, family, seed)
+    sc = scenario if scenario is not None else make_decoy_scenario(cfg, dcfg, family, seed)
     fence = Geofence(cfg.n, cfg.nfz)
     monitor = RTBMonitor(fence, cfg.base, cfg.speed, cfg.reserve_ticks)
     theta = class_theta(cfg.sensor, dcfg)
@@ -229,9 +247,10 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
                 return False
         return True
 
-    pos, path, rtb, carry = cfg.base, [], False, 0.0
-    remaining = cfg.budget_ticks
+    pos, path, rtb, carry = (cfg.base if start_pos is None else start_pos), [], False, 0.0
+    remaining = cfg.budget_ticks if start_remaining is None else start_remaining
     decision, t_dec, where = UNDECIDED, float("nan"), None
+    handed_back = False
     llr_log: list[float] = []
     violations = n_close = 0
     close_target, hover = None, 0
@@ -280,8 +299,12 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
             if d == ALERT:
                 where = alert_location(test.h1.prob(FIRE))
 
-    for t in range(cfg.budget_ticks):
-        if t > 0 and t % cfg.fire.fire_step_ticks == 0:
+    for t in range(cfg.budget_ticks if start_remaining is None else max(start_remaining, 1)):
+        if return_on_decision and decision != UNDECIDED:
+            handed_back = True
+            break
+        g = t + t_offset
+        if g > 0 and g % cfg.fire.fire_step_ticks == 0:
             fire.step()
             (filt or test).predict()
 
@@ -352,29 +375,33 @@ def run_decision_mission(cfg: MissionConfig, method: str, family: str, seed: int
         if rtb and pos == cfg.base:
             break
 
+    ticks_used = t if handed_back else t + 1
     if method == "M0" and decision == UNDECIDED:   # M0 cannot clear; silence at landing counts as CLEAR
-        decision, t_dec = CLEAR, (t + 1) * min_per_tick
+        decision, t_dec = CLEAR, ticks_used * min_per_tick
 
     truth = fire.affected
     correct, err_m, on_decoy = None, float("nan"), 0
     if decision == ALERT and where is not None:
         ri, ci = round(where[0]), round(where[1])
         on_decoy = int(sc.decoys[ri, ci])
-        if sc.has_fire:
+        if sc.has_fire and truth.any():   # v2.0: a latent fire may not have ignited yet
             d = distance_transform_edt(~truth)[ri, ci]
             err_m = float(d * cfg.cell_m)
             correct = bool(d <= CORRECT_RADIUS_CELLS)
         else:
             correct = False
     b = belief()
-    f1, _ = f1_iou(b, truth) if sc.has_fire else (float("nan"), None)
+    scored = sc.has_fire and truth.any()
+    f1, _ = f1_iou(b, truth) if scored else (float("nan"), None)
     return DecisionResult(
         method=method, family=family, seed=seed, has_fire=sc.has_fire, decision=decision,
         t_decision_min=t_dec, alert_correct=correct, alert_error_m=err_m, alert_on_decoy=on_decoy,
-        f1=f1, boundary_m=boundary_error(b, truth, cfg.cell_m) if sc.has_fire else float("nan"),
+        f1=f1, boundary_m=boundary_error(b, truth, cfg.cell_m) if scored else float("nan"),
         geofence_violations=violations, returned_to_base=(pos == cfg.base),
-        ticks_flown=t + 1, reserve_left=remaining, n_close_looks=n_close,
+        ticks_flown=ticks_used, reserve_left=remaining, n_close_looks=n_close,
         cue_seen_at_decision=cue_seen[0], ring_seen_at_decision=ring_seen[0], llr=llr_log, trace=trace, crossings=crossings,
+        final_pos=pos, alert_rc=where,
+        h1_fire=None if test is None else test.h1.prob(FIRE).copy(),
     )
 
 

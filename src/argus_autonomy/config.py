@@ -178,3 +178,24 @@ RECOMMENDED = {
     "NOMINAL": SPRTConfig(steer_clear=-4.595, dwell_ticks=30, alert=6.0, clear=-15.0),
     "VIIRS_PIXEL": SPRTConfig(steer_clear=-4.595, dwell_ticks=30, alert=2.0, clear=-30.0),
 }
+
+
+# ---------------------------------------------------------------- v2.0: patrol
+@dataclass(frozen=True)
+class PatrolConfig:
+    """Cue-free detection: one dock, one drone, sorties separated by recharges.
+
+    Ignition time and place are latent. The operator's risk map (``hazard``) is a
+    smooth random field; ignitions are drawn in proportion to hazard**gamma, so a
+    higher gamma concentrates fires on high-risk ground. The patrol filter's
+    ignition rate is the true conditional rate (one fire per ignition window).
+    """
+    horizon_ticks: int = 1620        # 4.5 h: the latest ignition still gets 2 h
+    recharge_ticks: int = 180        # 30 min on the dock between sorties
+    ign_window_min: tuple = (30, 150)  # ignition minute ~ U[a, b)
+    ign_min_dist: int = 6            # cells between dock and ignition
+    hazard_sigma: float = 6.0        # cells, smoothing of the risk field
+    hazard_gamma: float = 2.0
+    cue_threshold: float = 0.95      # patrol filter P(heat) that triggers a hand-off
+    cue_pixel: int = 8               # hand-off cue = cue_pixel^2 block (200 m at 25 m cells)
+    mask_dilate: int = 1             # cleared static sources are masked with this margin
