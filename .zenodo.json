@@ -1,10 +1,10 @@
 {
-  "title": "argus-autonomy: active wildfire-front estimation for a single UAV",
+  "title": "argus-autonomy: wildfire detection, confirmation and response for a single UAV",
   "upload_type": "software",
   "license": "Apache-2.0",
   "creators": [
     {"name": "d3st"}
   ],
-  "keywords": ["wildfire", "UAV", "active perception", "informative path planning", "Bayesian filtering"],
-  "description": "Simulation study: satellite hotspot prior + onboard thermal sensing fused in a Bayesian occupancy filter, information-rate planning under geofence and return-to-base constraints, with benchmark against coverage baselines and measured failure modes. Technical report included in docs/report/."
+  "keywords": ["wildfire", "UAV", "active perception", "informative path planning", "Bayesian filtering", "persistent monitoring", "wildfire suppression"],
+  "description": "Simulation study of wildfire autonomy for a single UAV, in three layers. Detect: cue-free patrol from a dock with a hazard-aware occupancy filter. Confirm: a sequential test between a spreading-fire model and a static-world model that discriminates decoys, with thresholds chosen on selection seeds and reported on held-out seeds. Respond: a responder brief, an ensemble forecast of the affected area, and a closed-form feasibility model of dock-launched suppression. All under a geofence and a return-to-base monitor. Every milestone is pre-registered; design documents and results are in docs/design/ and results/. The technical report in docs/report/ covers v1.0-v1.1."
 }
