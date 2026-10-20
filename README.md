@@ -153,7 +153,7 @@ Two new layers sit on either side of the v1.2b decision test, which is reused un
 | Planner | Expected information gain *G(c)* = Σ over the footprint of the mutual information I(X;Z); flies to argmax *G(c)* / (travel ticks + τ) | [`planners.py`](src/argus_autonomy/planners.py) |
 | Safety | Geodesic routing around the no-fly zone (no corner cutting). Waypoints are accepted only if the drone can still reach base with reserve; return-to-base is forced when the margin runs out | [`safety.py`](src/argus_autonomy/safety.py) |
 
-The [technical report](docs/report/report.pdf) gives the equations, the experimental protocol and the failure analysis in full.
+The [technical report](docs/report/report.pdf) gives the equations, the experimental protocol and the failure analysis for v1.0–v1.1 in full. Later versions are documented in their design documents under [`docs/design/`](docs/design/), each with its pre-registered protocol and results.
 
 ## Run it
 
@@ -199,7 +199,7 @@ See [`CITATION.cff`](CITATION.cff). Releases are archived on Zenodo:
 - all versions (concept DOI, resolves to the latest): [10.5281/zenodo.23326083](https://doi.org/10.5281/zenodo.23326083)
 - v1.1.0: [10.5281/zenodo.23438763](https://doi.org/10.5281/zenodo.23438763)
 
-Cite the version DOI when a result must be reproducible; the numbers in this README belong to v1.1.0.
+Cite the version DOI when a result must be reproducible; the numbers in this README belong to v2.0.0.
 
 ## License
 

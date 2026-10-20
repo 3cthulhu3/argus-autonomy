@@ -1,11 +1,11 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
-title: "argus-autonomy: active wildfire-front estimation for a single UAV"
+title: "argus-autonomy: wildfire detection, confirmation and response for a single UAV"
 type: software
-version: 1.1.0
-date-released: 2026-10-17
+version: 2.0.0
+date-released: 2026-10-20
 license: Apache-2.0
-doi: 10.5281/zenodo.23438763
+doi: 10.5281/zenodo.23326083
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23326083
@@ -22,6 +22,8 @@ keywords:
   - active perception
   - informative path planning
   - Bayesian occupancy filter
+  - persistent monitoring
+  - wildfire suppression
 abstract: >-
   Simulation study of a single UAV that fuses a coarse, stale satellite
   hotspot prior with noisy thermal measurements in a Bayesian occupancy
@@ -30,4 +32,8 @@ abstract: >-
   measured failure modes (spread-model mismatch, prior misspecification). Version 1.1 adds decoy
   discrimination: a sequential test between a spreading-fire model and a
   static-world model, with thresholds chosen on selection seeds and reported
-  on held-out seeds.
+  on held-out seeds. Version 2.0 adds a cue-free patrol layer that hands
+  detections to that test, and a response layer: a responder brief, an
+  ensemble forecast of the affected area, and a closed-form feasibility model
+  of dock-launched suppression, with ten expectations pre-registered before
+  the held-out runs.

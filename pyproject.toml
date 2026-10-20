@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "argus-autonomy"
-version = "1.1.0"
+version = "2.0.0"
 description = "Wildfire autonomy for a single UAV in simulation: cue-free patrol detection, Bayesian confirmation against decoys, responder forecasts and a suppression feasibility model, under a geofence/RTB safety monitor."
 readme = "README.md"
 license = "Apache-2.0"
