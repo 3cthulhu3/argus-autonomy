@@ -197,6 +197,7 @@ Every number in this README and in the report comes from the files these scripts
 See [`CITATION.cff`](CITATION.cff). Releases are archived on Zenodo:
 
 - all versions (concept DOI, resolves to the latest): [10.5281/zenodo.23326083](https://doi.org/10.5281/zenodo.23326083)
+- v2.0.0: [10.5281/zenodo.23496556](https://doi.org/10.5281/zenodo.23496556)
 - v1.1.0: [10.5281/zenodo.23438763](https://doi.org/10.5281/zenodo.23438763)
 
 Cite the version DOI when a result must be reproducible; the numbers in this README belong to v2.0.0.
