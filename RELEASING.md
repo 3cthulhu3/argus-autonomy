@@ -1,3 +1,13 @@
+# Releasing v2.1.0
+
+1. **Merge** pull request #11 (`v2.1/assimilation-regime` → `main`) once CI is green.
+2. **Release:** tag `v2.1.0` on `main`, title "v2.1.0 — drone data into a physical forecast, and a regime signal". Zenodo archives it under the concept DOI 10.5281/zenodo.23326083. `CITATION.cff` points at the concept DOI until step 3.
+3. **Close the loop:** once Zenodo has minted the version DOI, add it to `CITATION.cff` (`doi:` and `identifiers`) and to the README's Citation section. Do not cut another release for this.
+
+The technical report (`docs/report/`) still covers v1.0–v1.1; v1.2–v2.1 are documented in `docs/design/`.
+
+---
+
 # Releasing v2.0.0
 
 1. **Merge** the pull request `design/v2.0-detect-respond` → `main` once CI is green.

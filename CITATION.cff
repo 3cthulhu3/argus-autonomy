@@ -2,10 +2,10 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "argus-autonomy: wildfire detection, confirmation and response for a single UAV"
 type: software
-version: 2.0.0
-date-released: 2026-10-20
+version: 2.1.0
+date-released: 2026-11-13
 license: Apache-2.0
-doi: 10.5281/zenodo.23496556
+doi: 10.5281/zenodo.23326083
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23326083
@@ -27,6 +27,10 @@ keywords:
   - Bayesian occupancy filter
   - persistent monitoring
   - wildfire suppression
+  - data assimilation
+  - ensemble Kalman filter
+  - Rothermel fire spread model
+  - level set method
 abstract: >-
   Simulation study of a single UAV that fuses a coarse, stale satellite
   hotspot prior with noisy thermal measurements in a Bayesian occupancy
@@ -39,4 +43,9 @@ abstract: >-
   detections to that test, and a response layer: a responder brief, an
   ensemble forecast of the affected area, and a closed-form feasibility model
   of dock-launched suppression, with ten expectations pre-registered before
-  the held-out runs.
+  the held-out runs. Version 2.1 adds a front-scale fire world (Rothermel
+  spread rates, FARSITE's elliptical wavelet as a level set) and an ensemble
+  Kalman filter that assimilates drone perimeter, wind and fire radiative
+  power observations into the front and its inputs, plus Byram's convection
+  number as a regime signal; eight expectations were pre-registered before
+  the held-out run.

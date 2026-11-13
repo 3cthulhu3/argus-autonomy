@@ -233,7 +233,7 @@ See [`CITATION.cff`](CITATION.cff). Releases are archived on Zenodo:
 - v2.0.0: [10.5281/zenodo.23496556](https://doi.org/10.5281/zenodo.23496556)
 - v1.1.0: [10.5281/zenodo.23438763](https://doi.org/10.5281/zenodo.23438763)
 
-Cite the version DOI when a result must be reproducible; the numbers in this README belong to v2.0.0.
+Cite the version DOI when a result must be reproducible; the numbers in this README belong to v2.1.0 (its version DOI is added once Zenodo has minted it).
 
 ## License
 
