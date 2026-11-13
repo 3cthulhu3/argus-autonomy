@@ -202,5 +202,109 @@
   "JE vs SO +15": 0.13974294502204476,
   "JE vs OL +30": 0.311023599431418,
   "JE vs SO +30": 0.20092136812178685
- }
+ },
+ "scenario_level": {
+  "JE<OL sse+15": {
+   "wins": 160,
+   "losses": 40,
+   "p": 1.6920079887576423e-18,
+   "reduction_median": 0.2956165194134438,
+   "reduction_ci95": [
+    0.22683809651923564,
+    0.3767601976094974
+   ]
+  },
+  "JE<OL sse+30": {
+   "wins": 155,
+   "losses": 45,
+   "p": 1.1985779794762317e-15,
+   "reduction_median": 0.311023599431418,
+   "reduction_ci95": [
+    0.2424047755813842,
+    0.3776890934258115
+   ]
+  },
+  "JE<SO sse+15": {
+   "wins": 130,
+   "losses": 70,
+   "p": 1.3264377797634364e-05,
+   "reduction_median": 0.13974294502204476,
+   "reduction_ci95": [
+    0.08379932387846271,
+    0.20876286358591503
+   ]
+  },
+  "JE<SO sse+30": {
+   "wins": 136,
+   "losses": 64,
+   "p": 1.9522338899582096e-07,
+   "reduction_median": 0.20092136812178685,
+   "reduction_ci95": [
+    0.13456345679713938,
+    0.26774513394572164
+   ]
+  },
+  "SO<OL sse+15": {
+   "wins": 166,
+   "losses": 34,
+   "p": 2.3131077386927844e-22,
+   "reduction_median": 0.18119418316818503,
+   "reduction_ci95": [
+    0.13517908932729844,
+    0.23271367290509581
+   ]
+  },
+  "SO<OL sse+30": {
+   "wins": 162,
+   "losses": 38,
+   "p": 9.921850443705584e-20,
+   "reduction_median": 0.1377864792240019,
+   "reduction_ci95": [
+    0.08626088823727396,
+    0.18507688537143807
+   ]
+  },
+  "moisture JE<OL": {
+   "wins": 117,
+   "losses": 83,
+   "p": 0.009698472270169182
+  },
+  "wind JE<OL": {
+   "wins": 165,
+   "losses": 35,
+   "p": 1.1069885562592068e-21
+  },
+  "N_c JE<OL": {
+   "wins": 133,
+   "losses": 67,
+   "p": 1.7735890870653155e-06
+  }
+ },
+ "verdicts_scenario_level": [
+  {
+   "id": "E40",
+   "survives": true,
+   "evidence": "155:45 of 200 scenarios, p = 1.2e-15 (threshold 0.01)"
+  },
+  {
+   "id": "E41",
+   "survives": true,
+   "evidence": "136:64 of 200 scenarios, p = 2.0e-07 (threshold 0.05)"
+  },
+  {
+   "id": "E42",
+   "survives": true,
+   "evidence": "166:34 of 200 scenarios, p = 2.3e-22 (threshold 0.05)"
+  },
+  {
+   "id": "E44",
+   "survives": true,
+   "evidence": "117:83 of 200 scenarios, p = 9.7e-03 (threshold 0.05)"
+  },
+  {
+   "id": "E46",
+   "survives": true,
+   "evidence": "133:67 of 200 scenarios, p = 1.8e-06 (threshold 0.05)"
+  }
+ ]
 }

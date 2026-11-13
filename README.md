@@ -160,7 +160,8 @@ Eight expectations were committed before the held-out run; all eight held. At +3
 | forecast / true area, median | 1.04 | 1.07 | 1.04 |
 | wind error at issue, median | 1.67 m/s | 1.67 m/s | **0.82 m/s** |
 
-- The joint filter beats the open loop in 452 of 600 pairs and the perimeter-only filter in 406. Estimating the inputs, not just redrawing the perimeter, is what carries the forecast to 30 minutes.
+- The joint filter beats the open loop in 155 of 200 scenarios and the perimeter-only filter in 136. It cuts the median error by 31 % [24–38 %] and 20 % [13–27 %] respectively (95 % cluster-bootstrap intervals). Estimating the inputs, not just redrawing the perimeter, is what carries the forecast to 30 minutes.
+- *Correction in v2.1.1:* v2.1.0 counted the three issue times of a scenario as independent pairs (452 and 406 of 600), which overstated the p-values. All verdicts survive at scenario level; the moisture result (E44) only narrowly, at p = 0.01 (design doc §12).
 - **Regime signal.** Byram's convection number from the posterior gives a traffic light: GREEN means the kinematic forecast is inside its regime. Of the joint filter's 526 GREEN calls, 522 were wind-driven in the truth. Its N_c error is half the prior's.
 
 **Where it breaks.**
@@ -234,7 +235,7 @@ See [`CITATION.cff`](CITATION.cff). Releases are archived on Zenodo:
 - v2.0.0: [10.5281/zenodo.23496556](https://doi.org/10.5281/zenodo.23496556)
 - v1.1.0: [10.5281/zenodo.23438763](https://doi.org/10.5281/zenodo.23438763)
 
-Cite the version DOI when a result must be reproducible; the numbers in this README belong to v2.1.0.
+Cite the version DOI when a result must be reproducible; the numbers in this README belong to v2.1.1.
 
 ## License
 

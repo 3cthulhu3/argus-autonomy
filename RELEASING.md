@@ -1,3 +1,13 @@
+# Releasing v2.1.1
+
+A correction release: statistics only, no change to code that produces results.
+
+1. **Merge** the pull request `fix/v2.1.1-clustered-stats` → `main` once CI is green.
+2. **Release:** tag `v2.1.1` on `main`, title "v2.1.1 — scenario-level inference for v2.1". `CITATION.cff` points at the concept DOI until step 3.
+3. **Close the loop:** add the version DOI to `CITATION.cff` and the README's Citation section.
+
+---
+
 # Releasing v2.1.0
 
 1. **Merge** pull request #11 (`v2.1/assimilation-regime` → `main`) once CI is green.

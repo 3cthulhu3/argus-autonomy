@@ -19,6 +19,27 @@ Wind shift in 77 scenarios; truth fire reached the domain edge by minute 70 in 1
 
 **8 of 8 held.**
 
+### Correction (v2.1.1): the scenario as the unit of inference
+
+The pre-registered tests above pair the three issue times of a scenario as if they were independent. They share one fire, one landscape and one prior draw, so the p-values above are anti-conservative. Below, each scenario contributes one paired value (the mean over its issue times), and median reductions carry 95 % cluster-bootstrap intervals (5000 resamples of scenarios). The verdicts above are kept as pre-registered; this table says whether they survive.
+
+| | outcome at scenario level | evidence |
+|---|---|---|
+| E40 | survives | 155:45 of 200 scenarios, p = 1.2e-15 (threshold 0.01) |
+| E41 | survives | 136:64 of 200 scenarios, p = 2.0e-07 (threshold 0.05) |
+| E42 | survives | 166:34 of 200 scenarios, p = 2.3e-22 (threshold 0.05) |
+| E44 | survives | 117:83 of 200 scenarios, p = 9.7e-03 (threshold 0.05) |
+| E46 | survives | 133:67 of 200 scenarios, p = 1.8e-06 (threshold 0.05) |
+
+| comparison | lead | scenarios won : lost | p | median SSE reduction [95 % CI] |
+|---|---|---|---|---|
+| JE < OL | +15 | 160:40 | 1.7e-18 | 30 % [23–38 %] |
+| JE < OL | +30 | 155:45 | 1.2e-15 | 31 % [24–38 %] |
+| JE < SO | +15 | 130:70 | 1.3e-05 | 14 % [8–21 %] |
+| JE < SO | +30 | 136:64 | 2.0e-07 | 20 % [13–27 %] |
+| SO < OL | +15 | 166:34 | 2.3e-22 | 18 % [14–23 %] |
+| SO < OL | +30 | 162:38 | 9.9e-20 | 14 % [9–19 %] |
+
 ## Forecast skill
 
 Summed squared error over the domain divided by the true burnt area (lower is better; a deterministic forecast's value is its misclassified area over the true area). v2.0's relevant-set Brier and the other v2.0 scores are reported for continuity.

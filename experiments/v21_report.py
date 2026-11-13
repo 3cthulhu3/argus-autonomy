@@ -55,6 +55,61 @@ def verdicts(rows, s) -> list[tuple[str, bool, str]]:
     return out
 
 
+def _per_scenario(rows, a, b, ld=None, key="sse_m2"):
+    """Mean over the issue times of a's minus b's score, one value per scenario."""
+    if key == "sse_m2":
+        f = lambda r, m, t: r[f"{m}@{t}+{ld}:sse_m2"] / max(r[f"{m}@{t}+{ld}:true_m2"], 1.0)  # noqa: E731
+    elif key == "nc":
+        f = lambda r, m, t: abs(np.log10(np.clip(r[f"{m}@{t}:nc_med"], 1e-6, 1e9))  # noqa: E731
+                                - np.log10(np.clip(r[f"{m}@{t}:nc_true"], 1e-6, 1e9)))
+    else:
+        f = lambda r, m, t: r[f"{m}@{t}:{key}"]  # noqa: E731
+    return np.array([np.mean([f(r, a, t) - f(r, b, t) for t in ISSUES]) for r in rows])
+
+
+def scenario_level(rows, n_boot: int = 5000, seed: int = 0) -> dict:
+    """v2.1.1: inference with the scenario as the unit.
+
+    The pre-registered tests treat the three issue times of one scenario as independent
+    pairs; they are not (one fire, one landscape, one prior draw), so those p-values are
+    anti-conservative. Here each scenario contributes one paired value (the mean over its
+    issue times), and the median SSE reduction gets a 95 % cluster-bootstrap interval
+    (scenarios resampled with replacement).
+    """
+    rng = np.random.default_rng(seed)
+    out = {}
+    for a, b in (("JE", "OL"), ("JE", "SO"), ("SO", "OL")):
+        for ld in LEADS:
+            d = _per_scenario(rows, a, b, ld)
+            w, l_ = int((d < 0).sum()), int((d > 0).sum())
+            ra = np.array([[r[f"{a}@{t}+{ld}:sse_m2"] / r[f"{a}@{t}+{ld}:true_m2"] for t in ISSUES] for r in rows])
+            rb = np.array([[r[f"{b}@{t}+{ld}:sse_m2"] / r[f"{b}@{t}+{ld}:true_m2"] for t in ISSUES] for r in rows])
+            boot = []
+            for _ in range(n_boot):
+                i = rng.integers(0, len(rows), len(rows))
+                boot.append(1 - np.median(ra[i]) / np.median(rb[i]))
+            out[f"{a}<{b} sse+{ld}"] = {
+                "wins": w, "losses": l_, "p": sign_test(d, np.zeros_like(d))[2],
+                "reduction_median": float(1 - np.median(ra) / np.median(rb)),
+                "reduction_ci95": [float(np.percentile(boot, 2.5)), float(np.percentile(boot, 97.5))]}
+    for name, key in (("moisture JE<OL", "m_err"), ("wind JE<OL", "wind_err"), ("N_c JE<OL", "nc")):
+        d = _per_scenario(rows, "JE", "OL", key=key)
+        w, l_, p = sign_test(d, np.zeros_like(d))
+        out[name] = {"wins": w, "losses": l_, "p": p}
+    return out
+
+
+def verdicts_scenario(sl: dict) -> list[tuple[str, bool, str]]:
+    """The p-value-based verdicts (E40-E42, E44, E46) re-judged at scenario level, same thresholds."""
+    rows = []
+    for e, key, thr in (("E40", "JE<OL sse+30", 0.01), ("E41", "JE<SO sse+30", 0.05), ("E42", "SO<OL sse+15", 0.05),
+                        ("E44", "moisture JE<OL", 0.05), ("E46", "N_c JE<OL", 0.05)):
+        t = sl[key]
+        rows.append((e, t["p"] < thr, f"{t['wins']}:{t['losses']} of {t['wins'] + t['losses']} scenarios, "
+                     f"p = {t['p']:.1e} (threshold {thr})"))
+    return rows
+
+
 def report():
     rows = sorted(load(RES / "v21_heldout_runs.jsonl.gz"), key=lambda r: r["seed"])
     assert [r["seed"] for r in rows] == list(HELDOUT_SEEDS), "held-out run incomplete"
@@ -72,6 +127,24 @@ def report():
     for e, ok, txt in v:
         L.append(f"| {e} | {'held' if ok else '**not held**'} | {txt} |")
     L.append(f"\n**{sum(ok for _, ok, _ in v)} of {len(v)} held.**\n")
+    sl = scenario_level(rows)
+    vs = verdicts_scenario(sl)
+    L.append("### Correction (v2.1.1): the scenario as the unit of inference\n")
+    L.append("The pre-registered tests above pair the three issue times of a scenario as if they were "
+             "independent. They share one fire, one landscape and one prior draw, so the p-values above are "
+             "anti-conservative. Below, each scenario contributes one paired value (the mean over its issue "
+             "times), and median reductions carry 95 % cluster-bootstrap intervals (5000 resamples of scenarios). "
+             "The verdicts above are kept as pre-registered; this table says whether they survive.\n")
+    L.append("| | outcome at scenario level | evidence |\n|---|---|---|")
+    for e, ok, txt in vs:
+        L.append(f"| {e} | {'survives' if ok else '**does not survive**'} | {txt} |")
+    L.append("\n| comparison | lead | scenarios won : lost | p | median SSE reduction [95 % CI] |\n|---|---|---|---|---|")
+    for a, b in (("JE", "OL"), ("JE", "SO"), ("SO", "OL")):
+        for ld in LEADS:
+            t = sl[f"{a}<{b} sse+{ld}"]
+            L.append(f"| {a} < {b} | +{ld} | {t['wins']}:{t['losses']} | {t['p']:.1e} | "
+                     f"{100 * t['reduction_median']:.0f} % [{100 * t['reduction_ci95'][0]:.0f}–{100 * t['reduction_ci95'][1]:.0f} %] |")
+    L.append("")
     L.append("## Forecast skill\n")
     L.append("Summed squared error over the domain divided by the true burnt area (lower is better; "
              "a deterministic forecast's value is its misclassified area over the true area). "
@@ -130,7 +203,8 @@ def report():
     (RES / "v21_heldout.md").write_text("\n".join(L) + "\n")
     (RES / "v21_heldout.json").write_text(json.dumps(
         {"summary": s, "verdicts": [{"id": e, "held": bool(ok), "evidence": t} for e, ok, t in v],
-         "sse_reduction_median": imp}, indent=1))
+         "sse_reduction_median": imp, "scenario_level": sl,
+         "verdicts_scenario_level": [{"id": e, "survives": bool(ok), "evidence": t} for e, ok, t in vs]}, indent=1))
     print("\n".join(L))
 
 
