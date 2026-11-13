@@ -2,10 +2,10 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "argus-autonomy: wildfire detection, confirmation and response for a single UAV"
 type: software
-version: 2.1.0
+version: 2.1.1
 date-released: 2026-11-13
 license: Apache-2.0
-doi: 10.5281/zenodo.24189684
+doi: 10.5281/zenodo.23326083
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23326083
@@ -51,4 +51,5 @@ abstract: >-
   Kalman filter that assimilates drone perimeter, wind and fire radiative
   power observations into the front and its inputs, plus Byram's convection
   number as a regime signal; eight expectations were pre-registered before
-  the held-out run.
+  the held-out run. Version 2.1.1 corrects v2.1.0's significance tests to use
+  the scenario as the unit of inference and adds cluster-bootstrap intervals.
