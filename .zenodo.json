@@ -3,8 +3,22 @@
   "upload_type": "software",
   "license": "Apache-2.0",
   "creators": [
-    {"name": "d3st"}
+    {
+      "name": "d3st"
+    }
   ],
-  "keywords": ["wildfire", "UAV", "active perception", "informative path planning", "Bayesian filtering", "persistent monitoring", "wildfire suppression"],
-  "description": "Simulation study of wildfire autonomy for a single UAV, in three layers. Detect: cue-free patrol from a dock with a hazard-aware occupancy filter. Confirm: a sequential test between a spreading-fire model and a static-world model that discriminates decoys, with thresholds chosen on selection seeds and reported on held-out seeds. Respond: a responder brief, an ensemble forecast of the affected area, and a closed-form feasibility model of dock-launched suppression. All under a geofence and a return-to-base monitor. Every milestone is pre-registered; design documents and results are in docs/design/ and results/. The technical report in docs/report/ covers v1.0-v1.1."
+  "keywords": [
+    "wildfire",
+    "UAV",
+    "active perception",
+    "informative path planning",
+    "Bayesian filtering",
+    "persistent monitoring",
+    "wildfire suppression",
+    "data assimilation",
+    "ensemble Kalman filter",
+    "Rothermel fire spread model",
+    "level set method"
+  ],
+  "description": "Simulation study of wildfire autonomy for a single UAV, in three layers. Detect: cue-free patrol from a dock with a hazard-aware occupancy filter. Confirm: a sequential test between a spreading-fire model and a static-world model that discriminates decoys, with thresholds chosen on selection seeds and reported on held-out seeds. Respond: a responder brief, an ensemble forecast of the affected area, a closed-form feasibility model of dock-launched suppression, and (v2.1) a Rothermel level-set forecast corrected by an ensemble Kalman filter from drone perimeter, wind and fire radiative power observations, with Byram's convection number as a regime signal. All under a geofence and a return-to-base monitor. Every milestone is pre-registered; design documents and results are in docs/design/ and results/. The technical report in docs/report/ covers v1.0-v1.1."
 }
