@@ -1,0 +1,206 @@
+{
+ "summary": {
+  "n": 200,
+  "OL+15": {
+   "sse_rel_med": 0.20580021929824563,
+   "sse_rel_mean": 0.2863604810784336,
+   "brier_med": 0.09271346830985916,
+   "brier_mean": 0.10807089648548363,
+   "area_ratio_med": 1.0528125,
+   "area_ratio_iqr": [
+    0.8898832236842105,
+    1.215054347826087
+   ],
+   "cover10_med": 1.0,
+   "iou50_med": 0.75
+  },
+  "OL+30": {
+   "sse_rel_med": 0.23125542534722224,
+   "sse_rel_mean": 0.3253876696448818,
+   "brier_med": 0.09942116477272728,
+   "brier_mean": 0.11872131149849906,
+   "area_ratio_med": 1.039666821994408,
+   "area_ratio_iqr": [
+    0.8725834547100736,
+    1.2289249057394218
+   ],
+   "cover10_med": 0.9911095305832147,
+   "iou50_med": 0.7317073170731707
+  },
+  "OL:wind_err_med": 1.6731805885827855,
+  "OL:m_err_med": 0.01360691312160911,
+  "OL:nc_logerr_med": 0.2560812739530715,
+  "OL:regime_brier_mean": 0.11877708333333334,
+  "OL:regime_hit": 0.9066666666666666,
+  "SO+15": {
+   "sse_rel_med": 0.16851041666666666,
+   "sse_rel_mean": 0.21303434806842111,
+   "brier_med": 0.08794037828947368,
+   "brier_mean": 0.09748033609762334,
+   "area_ratio_med": 1.0731674178154824,
+   "area_ratio_iqr": [
+    0.9643649193548388,
+    1.1907608695652177
+   ],
+   "cover10_med": 0.9891007365169874,
+   "iou50_med": 0.8055555555555556
+  },
+  "SO+30": {
+   "sse_rel_med": 0.1993915544871795,
+   "sse_rel_mean": 0.265341950258342,
+   "brier_med": 0.09655023173391493,
+   "brier_mean": 0.11142708333209426,
+   "area_ratio_med": 1.0710784313725492,
+   "area_ratio_iqr": [
+    0.9487770432692307,
+    1.2138789581205311
+   ],
+   "cover10_med": 0.9807692307692307,
+   "iou50_med": 0.7631578947368421
+  },
+  "SO:wind_err_med": 1.6731805885827855,
+  "SO:m_err_med": 0.01360691312160911,
+  "SO:nc_logerr_med": 0.23433954105893295,
+  "SO:regime_brier_mean": 0.1184375,
+  "SO:regime_hit": 0.9116666666666666,
+  "JE+15": {
+   "sse_rel_med": 0.1449622747747748,
+   "sse_rel_mean": 0.1609941518023198,
+   "brier_med": 0.09175115740740741,
+   "brier_mean": 0.1039169094058249,
+   "area_ratio_med": 1.0472222222222223,
+   "area_ratio_iqr": [
+    0.9669256571741512,
+    1.1347506009615385
+   ],
+   "cover10_med": 0.9836065573770492,
+   "iou50_med": 0.8333333333333334
+  },
+  "JE+30": {
+   "sse_rel_med": 0.1593295305676856,
+   "sse_rel_mean": 0.1839902494353998,
+   "brier_med": 0.10064574501907589,
+   "brier_mean": 0.11997590898761815,
+   "area_ratio_med": 1.0429332386363637,
+   "area_ratio_iqr": [
+    0.9404840848806365,
+    1.13381845841785
+   ],
+   "cover10_med": 0.975,
+   "iou50_med": 0.8143841515934539
+  },
+  "JE:wind_err_med": 0.8181479741863772,
+  "JE:m_err_med": 0.010802628539750916,
+  "JE:nc_logerr_med": 0.13469785961506128,
+  "JE:regime_brier_mean": 0.08223333333333334,
+  "JE:regime_hit": 0.9333333333333333,
+  "JE<OL sse_m2+15": {
+   "wins": 465,
+   "losses": 135,
+   "p": 1.1239733819483854e-43
+  },
+  "JE<OL brier+15": {
+   "wins": 277,
+   "losses": 323,
+   "p": 0.9725383670799594
+  },
+  "JE<OL sse_m2+30": {
+   "wins": 452,
+   "losses": 148,
+   "p": 5.004557976384865e-37
+  },
+  "JE<OL brier+30": {
+   "wins": 260,
+   "losses": 340,
+   "p": 0.9995358547753025
+  },
+  "JE<SO sse_m2+15": {
+   "wins": 402,
+   "losses": 197,
+   "p": 1.9124457006299943e-17
+  },
+  "JE<SO brier+15": {
+   "wins": 242,
+   "losses": 358,
+   "p": 0.9999991709829992
+  },
+  "JE<SO sse_m2+30": {
+   "wins": 406,
+   "losses": 194,
+   "p": 1.5769611344753264e-18
+  },
+  "JE<SO brier+30": {
+   "wins": 237,
+   "losses": 363,
+   "p": 0.9999999023200663
+  },
+  "SO<OL sse_m2+15": {
+   "wins": 492,
+   "losses": 108,
+   "p": 8.91465346826166e-60
+  },
+  "SO<OL brier+15": {
+   "wins": 363,
+   "losses": 237,
+   "p": 1.518495871718502e-07
+  },
+  "SO<OL sse_m2+30": {
+   "wins": 465,
+   "losses": 135,
+   "p": 1.1239733819483854e-43
+  },
+  "SO<OL brier+30": {
+   "wins": 357,
+   "losses": 243,
+   "p": 1.860649689038849e-06
+  }
+ },
+ "verdicts": [
+  {
+   "id": "E40",
+   "held": true,
+   "evidence": "JE < OL on summed squared error at +30 min in 452 of 600 non-tied pairs (p = 5.0e-37)"
+  },
+  {
+   "id": "E41",
+   "held": true,
+   "evidence": "JE < SO at +30 min in 406 of 600 (p = 1.6e-18)"
+  },
+  {
+   "id": "E42",
+   "held": true,
+   "evidence": "SO < OL at +15 min in 492 of 600 (p = 8.9e-60)"
+  },
+  {
+   "id": "E43",
+   "held": true,
+   "evidence": "median wind error JE 0.82 m/s vs prior 1.67 m/s (ratio 0.49; bound 0.60)"
+  },
+  {
+   "id": "E44",
+   "held": true,
+   "evidence": "moisture error JE < prior in 355 of 600 (p = 4.1e-06); medians 1.08 vs 1.36 points"
+  },
+  {
+   "id": "E45",
+   "held": true,
+   "evidence": "JE +30 min: median area ratio 1.04 (bound 0.8-1.25), median envelope cover 0.97 (bound 0.9)"
+  },
+  {
+   "id": "E46",
+   "held": true,
+   "evidence": "|log10 N_c error| JE < prior in 413 of 600 (p = 7.2e-21); medians 0.13 vs 0.26"
+  },
+  {
+   "id": "E47",
+   "held": true,
+   "evidence": "v2.0 relevant-set Brier ranks SO above JE at +30 min in 363 of 600 pairs"
+  }
+ ],
+ "sse_reduction_median": {
+  "JE vs OL +15": 0.2956165194134438,
+  "JE vs SO +15": 0.13974294502204476,
+  "JE vs OL +30": 0.311023599431418,
+  "JE vs SO +30": 0.20092136812178685
+ }
+}

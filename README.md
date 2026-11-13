@@ -142,6 +142,36 @@ Two new layers sit on either side of the v1.2b decision test, which is reused un
 
 **Where it breaks.** Slow fires are where a payload could matter, and they are also where the test is weakest. Their growth is the test's only evidence, so confirmation takes about 12 min instead of 1, and 0.5–1.5 % of real slow fires were CLEARed. Suppression therefore remains a research item, and nothing here claims autonomous fire suppression. The measured product of the response layer is the brief and the forecast.
 
+## v2.1: drone data into a physical forecast, and a regime signal
+
+v2.0's forecast could only be re-initialised from the map, because the 25 m automaton has no physical inputs a drone could measure. v2.1 adds a second, front-scale fire world in which it can ([`docs/design/v2.1-assimilation-regime.md`](docs/design/v2.1-assimilation-regime.md)):
+- the spread rate is Rothermel's, for five Anderson fuel models, within 10 % of the published table;
+- the front is a level set carrying FARSITE's elliptical wavelet;
+- an ensemble Kalman filter updates the front *and* the wind, dead fuel moisture and a rate-of-spread factor from what the drone sees: perimeter points, local wind, and fire radiative power per metre of front.
+
+The truth world has the errors a real forecaster would face, built in on purpose: a fuel map with 10 % of cells misclassified in patches, a spatially varying wind with a 30–70° shift in 40 % of scenarios, a moisture field, unresolved spread variability, and an uncertain radiative fraction.
+
+Eight expectations were committed before the held-out run; all eight held. At +30 min over 600 paired forecasts:
+
+| | open loop (prior inputs) | perimeter only (state EnKF) | **joint (state + inputs)** |
+|---|---|---|---|
+| squared error over the domain / true area, median | 0.231 | 0.199 | **0.159** |
+| IoU of the P ≥ 0.5 region, median | 0.73 | 0.76 | **0.81** |
+| forecast / true area, median | 1.04 | 1.07 | 1.04 |
+| wind error at issue, median | 1.67 m/s | 1.67 m/s | **0.82 m/s** |
+
+- The joint filter beats the open loop in 452 of 600 pairs and the perimeter-only filter in 406. Estimating the inputs, not just redrawing the perimeter, is what carries the forecast to 30 minutes.
+- **Regime signal.** Byram's convection number from the posterior gives a traffic light: GREEN means the kinematic forecast is inside its regime. Of the joint filter's 526 GREEN calls, 522 were wind-driven in the truth. Its N_c error is half the prior's.
+
+**Where it breaks.**
+- A wind shift halves the joint filter's advantage over the perimeter-only filter (138 of 231 pairs instead of 268 of 369).
+- RED calls happen only at winds below 2 m/s, where the cube in N_c makes the regime unidentifiable. No truth state was ever plume-dominated, because the front world is kinematic. Whether RED predicts forecast failure needs real fires, and the test is written down but not run.
+- Truth and forecaster share equations and numerics (a twin experiment).
+
+**Two findings on method:**
+- The normal-wind-component formulation of WRF-SFIRE, written as a level set, halves the head speed of a point ignition (8.8 instead of 16.5 m/min), and a naive upwind scheme hides it.
+- v2.0's forecast score is not proper. Averaging the Brier over each forecast's own relevant set reverses the verdict here, and it also decided v2.0's E36, which is flagged for re-checking.
+
 ## Method
 
 | component | what it does | file |
@@ -159,7 +189,7 @@ The [technical report](docs/report/report.pdf) gives the equations, the experime
 
 ```bash
 pip install -e ".[dev]"          # Python ≥ 3.10; numpy, scipy (+ matplotlib, imageio for figures)
-pytest -q                        # 92 tests: Bayes update, regression invariants, geofence, RTB, first passage, v2.0 layers
+pytest -q                        # 109 tests: Bayes update, regression invariants, geofence, RTB, first passage, v2.0 layers, v2.1 Rothermel/level set/EnKF
 
 argus-demo --planner info-rate --seed 47 --gif mission.gif
 argus-demo --planner prior-lawnmower --condition degraded-prior --seed 68
@@ -178,6 +208,9 @@ python experiments/run_sweep.py --split heldout && (cd experiments && python ana
 
 # v2.0: detection and response (about 50 min on 2 cores)
 (cd experiments && python v20.py patrol && python v20.py forecast && python v20.py report)
+
+# v2.1: assimilation and regime signal (about 90 min on 2 cores)
+(cd experiments && python v21.py heldout && python v21.py report)
 ```
 
 Every number in this README and in the report comes from the files these scripts write. Results are deterministic for a given seed.
@@ -186,7 +219,7 @@ Every number in this README and in the report comes from the files these scripts
 
 - **2-D grid world.** No vehicle dynamics, wind on the aircraft, terrain, smoke occlusion or communication loss.
 - **Independent per-cell sensor noise; illustrative sensor and decoy numbers.** v1.1 models persistent decoys, but the class-conditional sensor rates and the decoy mix are assumptions, not measurements. The results describe the method's behaviour, not field performance.
-- **Toy fire model.** It is not Rothermel/FARSITE, and the spread parameters are not fitted to real fire data.
+- **Toy fire model in v1.x–v2.0.** The 25 m automaton is not Rothermel/FARSITE, and its spread parameters are not fitted to real fire data. v2.1's front world uses Rothermel and FARSITE's wavelet, but it is still a twin experiment: no spotting, crowning or fire–atmosphere coupling, and nothing in it is fitted to real fires.
 - **Simple safety monitor.** It is a checkable runtime invariant on a grid, not a formal reachability guarantee for continuous dynamics.
 - **One vehicle and a greedy one-step planner.** There is no multi-step lookahead and no multi-UAV coordination.
 - **One fire per scenario, static decoys.** Several simultaneous fires and moving heat sources are out of scope.

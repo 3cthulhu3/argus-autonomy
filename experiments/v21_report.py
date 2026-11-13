@@ -49,9 +49,9 @@ def verdicts(rows, s) -> list[tuple[str, bool, str]]:
     w, l_, p = sign_test(a, b)
     out.append(("E46", p < 0.05, f"|log10 N_c error| JE < prior in {w} of {w + l_} (p = {p:.1e}); medians "
                 f"{np.median(a):.2f} vs {np.median(b):.2f}"))
-    t = st("SO", "JE", "brier", 30)
-    out.append(("E47", t["wins"] > t["losses"], f"v2.0 relevant-set Brier ranks SO above JE at +30 min in "
-                f"{t['wins']} of {t['wins'] + t['losses']} pairs"))
+    t = st("JE", "SO", "brier", 30)          # SO ranks above JE where JE's Brier is higher: JE's losses
+    out.append(("E47", t["losses"] > t["wins"], f"v2.0 relevant-set Brier ranks SO above JE at +30 min in "
+                f"{t['losses']} of {t['wins'] + t['losses']} pairs"))
     return out
 
 

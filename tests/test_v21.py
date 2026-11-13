@@ -171,3 +171,16 @@ def test_regime_signal_lights():
     assert regime_signal([0.1] * 7 + [5.0] * 3).light == "AMBER"   # 0.7 wind-driven, none plume
     s = regime_signal([0.1] * 7 + [50.0, np.inf, 5.0])
     assert s.light == "RED" and s.p == pytest.approx((0.7, 0.1, 0.2))
+
+
+def test_front_brief_reads_like_a_brief():
+    from argus_autonomy.assimilation import front_brief, make_world, observe, prior_ensemble
+    cfg = ExperimentConfig(world=WorldConfig(front=FrontConfig(n=80)), filt=FilterConfig(k=8))
+    world = make_world(cfg.world, 5, 10.0)
+    init = observe(world, 10.0, 0, cfg.drone, np.random.default_rng(0), full=True)
+    ens = prior_ensemble(world, init, cfg.filt, np.random.default_rng(1))
+    b = front_brief(ens, FrontModel(world.land_model), 10.0, leads=(15.0,))
+    lines = b.lines()
+    assert lines[0].startswith("t+10 min") and lines[-1].startswith("regime ")
+    assert b.forecast_area_ha[15.0] >= b.area_ha * 0.9
+    assert b.regime.light in ("GREEN", "AMBER", "RED")

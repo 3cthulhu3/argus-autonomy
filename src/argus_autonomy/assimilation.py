@@ -467,6 +467,62 @@ def truth_nc(world: World, t: float) -> float:
     return float(head_nc(model, psi, world.inputs_true(t), np.hypot(w[..., 0], w[..., 1])[None])[0])
 
 
+# --------------------------------------------------------------------------- responder brief
+@dataclass
+class FrontBrief:
+    """What the front-world forecaster hands to the people who respond (v2.1)."""
+    minute: float
+    area_ha: float                   # expected burnt area now
+    head_ros_mmin: tuple             # median and 80 % range of the head rate of spread
+    head_intensity_kwm: float        # median Byram intensity at the head
+    flame_length_m: float            # Byram (1959) from that intensity
+    wind_ms: tuple                   # posterior mean (east, north) and speed s.d.
+    forecast_area_ha: dict           # lead (min) -> expected burnt area
+    envelope: dict                   # lead (min) -> boolean map, P(burnt) >= 0.1
+    regime: rg.RegimeSignal
+
+    def lines(self) -> list[str]:
+        r = self.head_ros_mmin
+        out = [f"t+{self.minute:.0f} min: {self.area_ha:.1f} ha burning or burnt",
+               f"head: {r[0]:.1f} m/min (80 % {r[1]:.1f}-{r[2]:.1f}), {self.head_intensity_kwm:.0f} kW/m, "
+               f"flames ~{self.flame_length_m:.1f} m",
+               f"wind: {np.hypot(*self.wind_ms[0]):.1f} m/s (s.d. {self.wind_ms[1]:.1f})"]
+        out += [f"+{int(k)} min: {v:.1f} ha expected" for k, v in self.forecast_area_ha.items()]
+        out.append("regime " + self.regime.line())
+        return out
+
+
+def front_brief(ens: Ensemble, model: FrontModel, minute: float, leads=(15.0, 30.0)) -> FrontBrief:
+    fc = model.cfg
+    k = len(ens.m)
+    inp = ens.inputs()
+    i_b = model.intensity(ens.psi, inp)
+    speed = model.normal_speed(ens.psi, inp)
+    front = np.abs(ens.psi) < 0.75 * fc.cell_m
+    flat = np.where(front, i_b, -1.0).reshape(k, -1)
+    j = flat.argmax(axis=1)
+    rows = np.arange(k)
+    i_head = np.maximum(flat[rows, j], 0.0)
+    r_head = speed.reshape(k, -1)[rows, j]
+    nc = rg.convection_number(i_head, np.hypot(ens.wind[:, 0], ens.wind[:, 1]), r_head)
+    fa, env = {}, {}
+    psi, t_prev = ens.psi, 0.0
+    for lead in sorted(leads):
+        psi = model.advance(psi, inp, lead - t_prev)
+        t_prev = lead
+        prob = (psi < 0).mean(axis=0)
+        fa[lead] = float(prob.sum() * fc.cell_m ** 2 / 1e4)
+        env[lead] = prob >= 0.1
+    from .rothermel import flame_length_m  # noqa: PLC0415
+    i_med = float(np.median(i_head))
+    return FrontBrief(
+        minute=minute, area_ha=float((ens.psi < 0).mean(axis=0).sum() * fc.cell_m ** 2 / 1e4),
+        head_ros_mmin=tuple(float(np.quantile(r_head, q)) for q in (0.5, 0.1, 0.9)),
+        head_intensity_kwm=i_med, flame_length_m=float(flame_length_m(i_med)),
+        wind_ms=(ens.wind.mean(axis=0), float(np.hypot(*ens.wind.std(axis=0)))),
+        forecast_area_ha=fa, envelope=env, regime=rg.regime_signal(nc))
+
+
 # --------------------------------------------------------------------------- one scenario
 METHODS = ("OL", "SO", "JE")
 
@@ -544,6 +600,6 @@ def _score_issue(rec, meth, tc, ens, model, world, cfg):
     rec[f"{tag}:area_m2"] = float((psi < 0).mean(axis=0).sum() * fc.cell_m ** 2)
 
 
-__all__ = ["DroneConfig", "Ensemble", "ExperimentConfig", "FilterConfig", "METHODS", "Obs", "World",
-           "WorldConfig", "analysis", "gaspari_cohn", "head_nc", "make_world", "observe",
+__all__ = ["DroneConfig", "Ensemble", "ExperimentConfig", "FilterConfig", "FrontBrief", "METHODS", "Obs",
+           "World", "WorldConfig", "analysis", "front_brief", "gaspari_cohn", "head_nc", "make_world", "observe",
            "perimeter_sdf", "prior_ensemble", "run_scenario", "truth_nc"]
