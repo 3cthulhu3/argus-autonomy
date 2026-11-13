@@ -5,11 +5,14 @@ type: software
 version: 2.1.0
 date-released: 2026-11-13
 license: Apache-2.0
-doi: 10.5281/zenodo.23326083
+doi: 10.5281/zenodo.24189684
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23326083
     description: Concept DOI, all versions
+  - type: doi
+    value: 10.5281/zenodo.24189684
+    description: Version 2.1.0
   - type: doi
     value: 10.5281/zenodo.23496556
     description: Version 2.0.0
